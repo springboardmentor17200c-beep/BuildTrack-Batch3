@@ -1,16 +1,13 @@
 from sqlalchemy.orm import Session
-from app import models, schema
+from app import models, schemas
+from app.auth import hash_password
 
 
-# =========================
-# USERS
-# =========================
-
-def create_user(db: Session, user: schema.UserRegister):
+def create_user(db: Session, user: schemas.UserRegister):
     db_user = models.User(
         name=user.name,
         email=user.email,
-        password=user.password,
+        password=hash_password(user.password),
         role=user.role,
         phone=user.phone
     )
@@ -28,11 +25,7 @@ def get_all_users(db: Session):
     return db.query(models.User).all()
 
 
-# =========================
-# PROJECTS
-# =========================
-
-def create_project(db: Session, project: schema.ProjectCreate):
+def create_project(db: Session, project: schemas.ProjectCreate):
     db_project = models.Project(**project.model_dump())
     db.add(db_project)
     db.commit()
@@ -48,11 +41,7 @@ def get_project(db: Session, project_id: int):
     return db.query(models.Project).filter(models.Project.id == project_id).first()
 
 
-# =========================
-# MILESTONES
-# =========================
-
-def create_milestone(db: Session, milestone: schema.MilestoneCreate):
+def create_milestone(db: Session, milestone: schemas.MilestoneCreate):
     db_milestone = models.ProjectMilestone(**milestone.model_dump())
     db.add(db_milestone)
     db.commit()
@@ -60,11 +49,7 @@ def create_milestone(db: Session, milestone: schema.MilestoneCreate):
     return db_milestone
 
 
-# =========================
-# RESOURCES
-# =========================
-
-def create_resource(db: Session, resource: schema.ResourceCreate):
+def create_resource(db: Session, resource: schemas.ResourceCreate):
     db_resource = models.Resource(**resource.model_dump())
     db.add(db_resource)
     db.commit()
@@ -76,11 +61,7 @@ def get_resources(db: Session):
     return db.query(models.Resource).all()
 
 
-# =========================
-# INVENTORY
-# =========================
-
-def create_inventory(db: Session, inventory: schema.InventoryCreate):
+def create_inventory(db: Session, inventory: schemas.InventoryCreate):
     db_inventory = models.Inventory(**inventory.model_dump())
     db.add(db_inventory)
     db.commit()
@@ -92,11 +73,7 @@ def get_inventory(db: Session):
     return db.query(models.Inventory).all()
 
 
-# =========================
-# WORKERS
-# =========================
-
-def create_worker(db: Session, worker: schema.WorkerCreate):
+def create_worker(db: Session, worker: schemas.WorkerCreate):
     db_worker = models.Worker(**worker.model_dump())
     db.add(db_worker)
     db.commit()
@@ -108,11 +85,7 @@ def get_workers(db: Session):
     return db.query(models.Worker).all()
 
 
-# =========================
-# ATTENDANCE
-# =========================
-
-def create_attendance(db: Session, attendance: schema.AttendanceCreate):
+def create_attendance(db: Session, attendance: schemas.AttendanceCreate):
     db_attendance = models.Attendance(**attendance.model_dump())
     db.add(db_attendance)
     db.commit()
@@ -124,11 +97,7 @@ def get_attendance(db: Session):
     return db.query(models.Attendance).all()
 
 
-# =========================
-# PROCUREMENT
-# =========================
-
-def create_procurement(db: Session, procurement: schema.ProcurementCreate):
+def create_procurement(db: Session, procurement: schemas.ProcurementCreate):
     db_procurement = models.Procurement(**procurement.model_dump())
     db.add(db_procurement)
     db.commit()
@@ -140,11 +109,7 @@ def get_procurements(db: Session):
     return db.query(models.Procurement).all()
 
 
-# =========================
-# NOTIFICATIONS
-# =========================
-
-def create_notification(db: Session, notification: schema.NotificationCreate):
+def create_notification(db: Session, notification: schemas.NotificationCreate):
     db_notification = models.Notification(**notification.model_dump())
     db.add(db_notification)
     db.commit()
@@ -156,11 +121,7 @@ def get_notifications(db: Session):
     return db.query(models.Notification).all()
 
 
-# =========================
-# REPORTS
-# =========================
-
-def create_report(db: Session, report: schema.ReportCreate):
+def create_report(db: Session, report: schemas.ReportCreate):
     db_report = models.Report(**report.model_dump())
     db.add(db_report)
     db.commit()
