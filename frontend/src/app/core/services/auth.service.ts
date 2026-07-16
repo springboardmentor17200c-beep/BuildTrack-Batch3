@@ -38,12 +38,12 @@ export class AuthService {
     return this.currentUserValue ? this.currentUserValue.role : null;
   }
   login(email: string, password: string, role: string): Observable<any> {
-
+    console.log("AuthService login called");
     const body = new URLSearchParams();
 
     body.set("username", email);
     body.set("password", password);
-
+    console.log("Sending request to:", `${this.apiUrl}/login`);
     const headers = new HttpHeaders({
         "Content-Type": "application/x-www-form-urlencoded"
     });
