@@ -54,7 +54,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <!-- Right Form Column -->
         <div class="col-lg-6 p-5 bg-white d-flex flex-column justify-content-center">
           <div class="text-center text-lg-start mb-4">
-            <h2 class="fw-bold mb-1 fs-3">Welcome Back</h2>
+            <h2 class="fw-bold mb-1 fs-3">Welcome Back-test</h2>
             <p class="text-muted text-sm">Please sign in to access your dashboard</p>
           </div>
 
