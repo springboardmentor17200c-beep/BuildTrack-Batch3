@@ -267,18 +267,21 @@ export class LoginComponent implements OnInit {
   onSubmit(): void {
     this.submitted = true;
     this.error = '';
-
+  
     // Stop here if form is invalid
     if (this.loginForm.invalid) {
       return;
     }
 
     const { email, password, role } = this.loginForm.value;
+    console.log("Login button clicked");
     this.authService.login(email, password, role).subscribe({
-      next: () => {
+      next: (response) => {
+        console.log("Login Success", response);
         this.redirectToDashboard(role);
       },
       error: err => {
+        console.log("Login Error", err);
         this.error = err.message || 'Login failed. Please check credentials.';
       }
     });
