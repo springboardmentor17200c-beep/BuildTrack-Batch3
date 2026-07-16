@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface User {
   name: string;
@@ -12,10 +14,11 @@ export interface User {
   providedIn: 'root'
 })
 export class AuthService {
+  private apiUrl = 'http://127.0.0.1:8000/users';
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser$: Observable<User | null>;
 
-  constructor() {
+  constructor(private http: HttpClient) {
     const storedUser = localStorage.getItem('bt_user');
     this.currentUserSubject = new BehaviorSubject<User | null>(
       storedUser ? JSON.parse(storedUser) : null
@@ -34,64 +37,43 @@ export class AuthService {
   public get userRole(): string | null {
     return this.currentUserValue ? this.currentUserValue.role : null;
   }
+  login(email: string, password: string, role: string): Observable<any> {
 
-  login(email: string, role: string): Observable<User> {
-    // Simulated JWT login. Any credentials will pass.
-    const mockUser: User = {
-      name: this.getUserNameByRole(role),
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
-  }
+    const body = new URLSearchParams();
 
-  register(name: string, email: string, role: string): Observable<User> {
-    // Simulated registration
-    const mockUser: User = {
-      name: name,
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
-  }
+    body.set("username", email);
+    body.set("password", password);
 
-  resetPassword(email: string): Observable<boolean> {
-    // Simulated forgot password
-    console.log(`Password reset link sent to: ${email}`);
-    return of(true);
-  }
+    const headers = new HttpHeaders({
+        "Content-Type": "application/x-www-form-urlencoded"
+    });
 
-  logout(): void {
-    localStorage.removeItem('bt_user');
-    this.currentUserSubject.next(null);
-  }
+    return this.http.post<any>(
+        `${this.apiUrl}/login`,
+        body.toString(),
+        { headers }
+    ).pipe(
 
-  updateProfile(name: string, email: string): Observable<User | null> {
-    if (this.currentUserValue) {
-      const updatedUser = { ...this.currentUserValue, name, email };
-      localStorage.setItem('bt_user', JSON.stringify(updatedUser));
-      this.currentUserSubject.next(updatedUser);
-      return of(updatedUser);
-    }
-    return of(null);
-  }
+        tap(response => {
 
-  private getUserNameByRole(role: string): string {
-    switch(role) {
-      case 'Admin': return 'John Doe (Admin)';
-      case 'Project Manager': return 'Sarah Jenkins';
-      case 'Site Engineer': return 'Alex Rivera';
-      case 'Contractor': return 'Marcus Vance';
-      case 'Client': return 'BuildCorp Developments';
-      default: return 'User';
-    }
-  }
+            const user = {
+                name: email,
+                email: email,
+                role: role,
+                token: response.access_token
+            };
+
+            localStorage.setItem(
+                "bt_user",
+                JSON.stringify(user)
+            );
+
+            this.currentUserSubject.next(user);
+
+        })
+
+    );
+
+}
+  
 }
