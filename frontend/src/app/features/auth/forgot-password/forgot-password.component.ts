@@ -194,7 +194,7 @@ export class ForgotPasswordComponent implements OnInit {
         this.resetEmail = email;
         this.success = true;
       },
-      error: err => {
+      error: (err: any) => {
         this.error = err.message || 'Error executing request.';
       }
     });
