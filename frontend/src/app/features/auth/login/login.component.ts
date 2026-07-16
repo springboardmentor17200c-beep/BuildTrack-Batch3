@@ -246,7 +246,6 @@ export class LoginComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-     alert("LoginComponent Loaded");
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
