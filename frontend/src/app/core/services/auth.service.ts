@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 export interface User {
@@ -9,50 +9,25 @@ export interface User {
   role: string;
   token?: string;
 }
-resetPassword(email: string): Observable<boolean> {
-  console.log("Reset password:", email);
-  return new Observable(observer => {
-    observer.next(true);
-    observer.complete();
-  });
-}
-register(name: string, email: string, role: string): Observable<any> {
 
-  return this.http.post(`${this.apiUrl}/register`, {
-      name,
-      email,
-      password: "password123",
-      role,
-      phone: ""
-  });
-
-}
-logout(): void {
-    localStorage.removeItem("bt_user");
-    this.currentUserSubject.next(null);
-}
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+
   private apiUrl = 'http://127.0.0.1:8000/users';
+
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser$: Observable<User | null>;
 
   constructor(private http: HttpClient) {
     const storedUser = localStorage.getItem('bt_user');
+
     this.currentUserSubject = new BehaviorSubject<User | null>(
       storedUser ? JSON.parse(storedUser) : null
     );
-    this.currentUser$ = this.currentUserSubject.asObservable();
-  }
 
-  resetPassword(email: string): Observable<boolean> {
-    console.log("Reset password:", email);
-    return new Observable(observer => {
-      observer.next(true);
-      observer.complete();
-    });
+    this.currentUser$ = this.currentUserSubject.asObservable();
   }
 
   public get currentUserValue(): User | null {
@@ -64,59 +39,89 @@ export class AuthService {
   }
 
   public get userRole(): string | null {
-    return this.currentUserValue ? this.currentUserValue.role : null;
+    return this.currentUserValue?.role || null;
   }
-  login(email: string, password: string, role: string): Observable<any> {
-    console.log("AuthService login called");
-    const body = new URLSearchParams();
 
+  login(email: string, password: string, role: string): Observable<any> {
+
+    console.log("AuthService login called");
+
+    const body = new URLSearchParams();
     body.set("username", email);
     body.set("password", password);
-    console.log("Sending request to:", `${this.apiUrl}/login`);
+
     const headers = new HttpHeaders({
-        "Content-Type": "application/x-www-form-urlencoded"
+      "Content-Type": "application/x-www-form-urlencoded"
     });
 
     return this.http.post<any>(
-        `${this.apiUrl}/login`,
-        body.toString(),
-        { headers }
+      `${this.apiUrl}/login`,
+      body.toString(),
+      { headers }
     ).pipe(
 
-        tap(response => {
+      tap(response => {
 
-            const user = {
-                name: email,
-                email: email,
-                role: role,
-                token: response.access_token
-            };
+        const user: User = {
+          name: email,
+          email: email,
+          role: role,
+          token: response.access_token
+        };
 
-            localStorage.setItem(
-                "bt_user",
-                JSON.stringify(user)
-            );
+        localStorage.setItem("bt_user", JSON.stringify(user));
+        this.currentUserSubject.next(user);
 
-            this.currentUserSubject.next(user);
-
-        })
+      })
 
     );
 
-}
+  }
+
   register(name: string, email: string, role: string): Observable<any> {
 
-  return this.http.post<any>(`${this.apiUrl}/register`, {
-    name,
-    email,
-    password: "password123",
-    role,
-    phone: ""
-  });
+    return this.http.post<any>(`${this.apiUrl}/register`, {
+      name: name,
+      email: email,
+      password: "password123",
+      role: role,
+      phone: ""
+    });
 
-}
-logout(): void {
-  localStorage.removeItem("bt_user");
-  this.currentUserSubject.next(null);
-}
+  }
+
+  resetPassword(email: string): Observable<boolean> {
+
+    console.log("Reset password:", email);
+    return of(true);
+
+  }
+
+  logout(): void {
+
+    localStorage.removeItem("bt_user");
+    this.currentUserSubject.next(null);
+
+  }
+
+  updateProfile(name: string, email: string): Observable<User | null> {
+
+    if (this.currentUserValue) {
+
+      const updatedUser: User = {
+        ...this.currentUserValue,
+        name,
+        email
+      };
+
+      localStorage.setItem("bt_user", JSON.stringify(updatedUser));
+      this.currentUserSubject.next(updatedUser);
+
+      return of(updatedUser);
+    }
+
+    return of(null);
+
+  }
+
 }
