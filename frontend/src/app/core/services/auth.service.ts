@@ -9,7 +9,28 @@ export interface User {
   role: string;
   token?: string;
 }
+resetPassword(email: string): Observable<boolean> {
+  console.log("Reset password:", email);
+  return new Observable(observer => {
+    observer.next(true);
+    observer.complete();
+  });
+}
+register(name: string, email: string, role: string): Observable<any> {
 
+  return this.http.post(`${this.apiUrl}/register`, {
+      name,
+      email,
+      password: "password123",
+      role,
+      phone: ""
+  });
+
+}
+logout(): void {
+    localStorage.removeItem("bt_user");
+    this.currentUserSubject.next(null);
+}
 @Injectable({
   providedIn: 'root'
 })
