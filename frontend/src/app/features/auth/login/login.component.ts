@@ -273,8 +273,8 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    const { email, role } = this.loginForm.value;
-    this.authService.login(email, role).subscribe({
+    const { email, password, role } = this.loginForm.value;
+    this.authService.login(email, password, role).subscribe({
       next: () => {
         this.redirectToDashboard(role);
       },
