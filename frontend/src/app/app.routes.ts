@@ -12,7 +12,7 @@ import { ProjectListComponent } from './features/projects/project-list.component
 import { ProjectDetailsComponent } from './features/projects/project-details.component';
 import { ResourceManagementComponent } from './features/resources/resource-management.component';
 import { InventoryComponent } from './features/inventory/inventory.component';
-import { AttendanceComponent } from './features/workforce/attendance.component';
+import { WorkforceComponent } from './features/workforce/workforce.component';
 import { AnalyticsComponent } from './features/analytics/analytics.component';
 import { AuthGuard } from './core/guards/auth.guard';
 
@@ -42,7 +42,7 @@ export const routes: Routes = [
       { 
         path: 'dashboard/engineer', 
         component: EngineerDashboardComponent, 
-        data: { roles: ['Site Engineer'] } 
+        data: { roles: ['Site Engineer', 'Worker'] } 
       },
       { 
         path: 'dashboard/contractor', 
@@ -64,7 +64,7 @@ export const routes: Routes = [
       { 
         path: 'projects/:id', 
         component: ProjectDetailsComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Client'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Client', 'Worker'] } 
       },
       { 
         path: 'resources', 
@@ -77,9 +77,14 @@ export const routes: Routes = [
         data: { roles: ['Admin', 'Project Manager', 'Contractor'] } 
       },
       { 
-        path: 'attendance', 
-        component: AttendanceComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Site Engineer'] } 
+        path: 'workforce', 
+        component: WorkforceComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Worker'] } 
+      },
+      {
+        path: 'attendance',
+        redirectTo: 'workforce',
+        pathMatch: 'full'
       },
       { 
         path: 'analytics', 

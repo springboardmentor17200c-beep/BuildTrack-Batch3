@@ -5,13 +5,11 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
-
-interface Milestone {
-  title: string;
-  dueDate: string;
-  status: 'Completed' | 'In Progress' | 'Pending';
-  description: string;
-}
+import { ProjectService } from '../../core/services/project.service';
+import { ToastService } from '../../core/services/toast.service';
+import { Project } from '../../core/interfaces/project.interface';
+import { MilestoneStepperComponent } from './milestone-stepper.component';
+import { ToastComponent } from '../../shared/components/toast/toast.component';
 
 interface ActivityLog {
   time: string;
@@ -22,7 +20,16 @@ interface ActivityLog {
 @Component({
   selector: 'app-project-details',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, MatButtonModule, MatTabsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTabsModule,
+    MilestoneStepperComponent,
+    ToastComponent
+  ],
   template: `
     <div class="container-fluid" *ngIf="project">
       <!-- Back button & Header -->
@@ -37,7 +44,7 @@ interface ActivityLog {
               <h1 class="h2 fw-bold mb-0 text-slate-800">{{ project.name }}</h1>
               <span class="badge bg-light text-dark text-xs border border-secondary border-opacity-10">{{ project.category }}</span>
             </div>
-            <p class="text-muted mb-0 mt-1">Project Workspace Workspace ID: BT-PROJ-00{{ project.id }}</p>
+            <p class="text-muted mb-0 mt-1">Project Workspace ID: BT-PROJ-00{{ project.id }}</p>
           </div>
           <span class="bt-badge py-2 px-3 fs-6" 
                 [class.bt-badge-success]="project.status === 'On Track'" 
@@ -63,7 +70,7 @@ interface ActivityLog {
           <div class="bt-card py-3 px-4">
             <span class="text-muted text-xs text-uppercase tracking-wider fw-bold">Total Budget Cap</span>
             <h3 class="fw-bold mt-1 mb-2 text-dark">{{ project.budget }}</h3>
-            <span class="text-xxs text-muted">Burn Rate: <strong>81% of allocation</strong></span>
+            <span class="text-xxs text-muted">Burn Rate: <strong>{{ project.spent }} Spent</strong></span>
           </div>
         </div>
         <div class="col-12 col-md-4">
@@ -81,28 +88,12 @@ interface ActivityLog {
         <mat-tab label="Milestones & Timeline">
           <div class="p-3">
             <h5 class="fw-bold mb-4">Project Milestone Roadmap</h5>
-            <div class="timeline-container px-3">
-              <div *ngFor="let ms of milestones; let i = index" class="timeline-item d-flex gap-4 mb-4 position-relative">
-                <div class="connector-line" *ngIf="i < milestones.length - 1"></div>
-                <div class="timeline-node rounded-circle d-flex align-items-center justify-content-center"
-                     [ngClass]="getNodeClass(ms.status)">
-                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">{{ getNodeIcon(ms.status) }}</mat-icon>
-                </div>
-                <div class="timeline-content border border-secondary border-opacity-10 rounded p-3 bg-light flex-grow-1">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <h6 class="fw-bold text-slate-800 mb-1">{{ ms.title }}</h6>
-                    <span class="badge text-xs" 
-                          [class.bg-success]="ms.status === 'Completed'" 
-                          [class.bg-warning]="ms.status === 'In Progress'" 
-                          [class.bg-secondary]="ms.status === 'Pending'">
-                      {{ ms.status }}
-                    </span>
-                  </div>
-                  <p class="text-muted text-xs mb-2">{{ ms.description }}</p>
-                  <span class="text-xxs text-muted fw-semibold">Target Completion: {{ ms.dueDate }}</span>
-                </div>
-              </div>
-            </div>
+            
+            <!-- Reusable Stepper Child Component -->
+            <app-milestone-stepper 
+              [milestones]="project.milestones"
+              (statusChange)="onMilestoneStatusUpdate($event)">
+            </app-milestone-stepper>
           </div>
         </mat-tab>
 
@@ -185,28 +176,15 @@ interface ActivityLog {
         </mat-tab>
       </mat-tab-group>
     </div>
+
+    <!-- Fallback Loading spinner -->
+    <div *ngIf="!project" class="d-flex flex-column align-items-center justify-content-center py-5">
+      <span class="spinner-border text-warning mb-2" role="status"></span>
+      <span class="text-muted text-sm">Resolving project workspace workspace...</span>
+    </div>
+    <app-toast></app-toast>
   `,
   styles: [`
-    .timeline-container { position: relative; }
-    .timeline-item { position: relative; }
-    .connector-line {
-      position: absolute;
-      top: 36px;
-      left: 18px;
-      width: 2px;
-      height: calc(100% - 12px);
-      background-color: var(--slate-200);
-      z-index: 1;
-    }
-    .timeline-node {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
-      z-index: 2;
-    }
-    .bg-node-completed { background-color: #d1fae5; color: #10b981; border: 2px solid #10b981; }
-    .bg-node-active { background-color: #ecfeff; color: #06b6d4; border: 2px solid #06b6d4; }
-    .bg-node-pending { background-color: #f1f5f9; color: #94a3b8; border: 2px solid #cbd5e1; }
     .text-xxs { font-size: 0.72rem; }
     .text-xs { font-size: 0.8rem; }
     .text-sm { font-size: 0.9rem; }
@@ -214,16 +192,9 @@ interface ActivityLog {
   `]
 })
 export class ProjectDetailsComponent implements OnInit {
-  project: any = null;
+  project: Project | null = null;
   logForm!: FormGroup;
   submitted = false;
-
-  milestones: Milestone[] = [
-    { title: 'Earthmoving & Grading Phase', dueDate: '2026-05-15', status: 'Completed', description: 'Heavy levelling machinery operations, drainage conduits framing.' },
-    { title: 'Substructure Foundation Pour', dueDate: '2026-06-10', status: 'Completed', description: 'Concrete pour and settlement checks on support pillars.' },
-    { title: 'Steel Framing Pillars (Level 2)', dueDate: '2026-08-01', status: 'In Progress', description: 'Setting up structural scaffolding framework for core elevator shafts.' },
-    { title: 'Wall Partition Masonry', dueDate: '2026-09-15', status: 'Pending', description: 'Layering bricks for external boundary layouts.' }
-  ];
 
   logs: ActivityLog[] = [
     { time: '10 mins ago', author: 'Alex Rivera', action: 'Uploaded daily inspector report for Level 2 beams.' },
@@ -238,23 +209,29 @@ export class ProjectDetailsComponent implements OnInit {
     { category: 'Administrative & Permits', budget: '$100,000', spent: '$95,000', remaining: '$5,000', burn: 95 }
   ];
 
-  // Dummy projects data matching list
-  private projectsList = [
-    { id: 1, name: 'Metropolitan Commercial Plaza', category: 'Commercial', progress: 85, budget: '$1.5M', status: 'On Track' },
-    { id: 2, name: 'Riverside Residential Township', category: 'Residential', progress: 48, budget: '$2.0M', status: 'Delayed' },
-    { id: 3, name: 'Industrial Cold Storage Unit', category: 'Industrial', progress: 92, budget: '$800k', status: 'On Track' },
-    { id: 4, name: 'State Highway Bypass Route', category: 'Infrastructure', progress: 24, budget: '$3.5M', status: 'Critical' },
-    { id: 5, name: 'Metro Line Bridge Foundations', category: 'Government Projects', progress: 60, budget: '$5.0M', status: 'On Track' }
-  ];
-
   constructor(
     private route: ActivatedRoute,
-    private formBuilder: FormBuilder
+    private formBuilder: FormBuilder,
+    private projectService: ProjectService,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id')) || 1;
-    this.project = this.projectsList.find(p => p.id === id) || this.projectsList[0];
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    if (id) {
+      this.projectService.getProjectById(id).subscribe({
+        next: (p) => {
+          if (p) {
+            this.project = p;
+          } else {
+            this.toastService.showError('Project matching ID was not found.');
+          }
+        },
+        error: () => {
+          this.toastService.showError('Unable to retrieve project workspace.');
+        }
+      });
+    }
 
     this.logForm = this.formBuilder.group({
       action: ['', Validators.required]
@@ -262,22 +239,6 @@ export class ProjectDetailsComponent implements OnInit {
   }
 
   get f() { return this.logForm.controls; }
-
-  getNodeClass(status: string): string {
-    switch (status) {
-      case 'Completed': return 'bg-node-completed';
-      case 'In Progress': return 'bg-node-active';
-      default: return 'bg-node-pending';
-    }
-  }
-
-  getNodeIcon(status: string): string {
-    switch (status) {
-      case 'Completed': return 'check';
-      case 'In Progress': return 'pending';
-      default: return 'radio_button_unchecked';
-    }
-  }
 
   getInitials(name: string): string {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -299,5 +260,22 @@ export class ProjectDetailsComponent implements OnInit {
     this.logs.unshift(newLog);
     this.logForm.reset();
     this.submitted = false;
+    this.toastService.showSuccess('Site activity log uploaded successfully.');
+  }
+
+  onMilestoneStatusUpdate(event: { milestoneId: number, status: 'Completed' | 'In Progress' | 'Pending' }): void {
+    if (this.project) {
+      this.projectService.updateMilestone(this.project.id, event.milestoneId, event.status).subscribe({
+        next: (p) => {
+          if (p) {
+            this.project = p;
+            this.toastService.showSuccess('Project milestones and progress updated.');
+          }
+        },
+        error: () => {
+          this.toastService.showError('Failed to save milestone change.');
+        }
+      });
+    }
   }
 }

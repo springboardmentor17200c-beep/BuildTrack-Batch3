@@ -9,6 +9,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ToastComponent } from '../../../shared/components/toast/toast.component';
 
 @Component({
   selector: 'app-login',
@@ -22,7 +24,8 @@ import { AuthService } from '../../../core/services/auth.service';
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    ToastComponent
   ],
   template: `
     <div class="auth-container d-flex align-items-center justify-content-center min-vh-100 p-4">
@@ -95,6 +98,7 @@ import { AuthService } from '../../../core/services/auth.service';
                 <option value="Project Manager">Project Manager</option>
                 <option value="Site Engineer">Site Engineer</option>
                 <option value="Contractor">Contractor</option>
+                <option value="Worker">Worker</option>
                 <option value="Client">Client / Owner</option>
               </select>
               <div *ngIf="submitted && f['role'].errors" class="invalid-feedback text-xs">
@@ -110,10 +114,35 @@ import { AuthService } from '../../../core/services/auth.service';
               <a routerLink="/forgot-password" class="text-warning text-xs text-decoration-none fw-semibold hover-underline">Forgot Password?</a>
             </div>
 
-            <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2">
-              <span>Sign In</span>
-              <mat-icon style="font-size: 20px; width: 20px; height: 20px;">login</mat-icon>
+            <!-- Sign In Button with loading indicator -->
+            <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2" [disabled]="isLoading">
+              <span *ngIf="!isLoading">Sign In</span>
+              <span *ngIf="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <mat-icon *ngIf="!isLoading" style="font-size: 20px; width: 20px; height: 20px;">login</mat-icon>
             </button>
+
+            <!-- Social Logins (Google and Facebook) -->
+            <div class="d-flex flex-column gap-2 mt-1">
+              <div class="d-flex align-items-center my-1">
+                <hr class="flex-grow-1 border-light opacity-50 my-0">
+                <span class="px-2 text-muted text-xxs tracking-wider text-uppercase fw-semibold">or</span>
+                <hr class="flex-grow-1 border-light opacity-50 my-0">
+              </div>
+              
+              <button type="button" class="btn btn-bt-outline w-100 py-2.5 d-flex align-items-center justify-content-center gap-2" 
+                      [disabled]="isGoogleLoading || isFacebookLoading || isLoading" (click)="onSocialLogin('Google')">
+                <span *ngIf="isGoogleLoading" class="spinner-border spinner-border-sm text-danger" role="status" aria-hidden="true"></span>
+                <i class="bi bi-google text-danger fw-bold" *ngIf="!isGoogleLoading"></i>
+                <span class="text-sm fw-medium">Continue with Google</span>
+              </button>
+
+              <button type="button" class="btn btn-bt-outline w-100 py-2.5 d-flex align-items-center justify-content-center gap-2" 
+                      [disabled]="isGoogleLoading || isFacebookLoading || isLoading" (click)="onSocialLogin('Facebook')">
+                <span *ngIf="isFacebookLoading" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                <i class="bi bi-facebook text-primary fw-bold" *ngIf="!isFacebookLoading"></i>
+                <span class="text-sm fw-medium">Continue with Facebook</span>
+              </button>
+            </div>
 
             <!-- Error message banner -->
             <div *ngIf="error" class="alert alert-danger py-2 px-3 rounded text-xs mt-2" role="alert">
@@ -135,11 +164,14 @@ import { AuthService } from '../../../core/services/auth.service';
               <button (click)="quickLogin('engineer@buildtrack.com', 'Site Engineer')" class="btn btn-xs btn-outline-secondary px-3 py-1 text-xxs">Engineer</button>
               <button (click)="quickLogin('contractor@buildtrack.com', 'Contractor')" class="btn btn-xs btn-outline-secondary px-3 py-1 text-xxs">Contractor</button>
               <button (click)="quickLogin('client@buildtrack.com', 'Client')" class="btn btn-xs btn-outline-secondary px-3 py-1 text-xxs">Client</button>
+              <button (click)="quickLogin('worker@buildtrack.com', 'Worker')" class="btn btn-xs btn-outline-secondary px-3 py-1 text-xxs">Worker</button>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <!-- App Toast Component Overlay -->
+    <app-toast></app-toast>
   `,
   styles: [`
     .auth-container {
@@ -199,7 +231,7 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .form-group-custom {
       display: flex;
-      flex-column: column;
+      flex-direction: column;
       margin-bottom: 0.5rem;
     }
     .btn-eye {
@@ -238,11 +270,17 @@ export class LoginComponent implements OnInit {
   error = '';
   returnUrl = '';
 
+  // Loading States
+  isLoading = false;
+  isGoogleLoading = false;
+  isFacebookLoading = false;
+
   constructor(
     private formBuilder: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -252,36 +290,69 @@ export class LoginComponent implements OnInit {
       role: ['', Validators.required]
     });
 
-    // Get return url from route parameters or default to '/'
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
 
-    // Redirect to home dashboard if already logged in
     if (this.authService.isLoggedIn) {
       this.redirectToDashboard(this.authService.userRole || '');
     }
   }
 
-  // convenience getter for easy access to form fields
   get f() { return this.loginForm.controls; }
 
   onSubmit(): void {
     this.submitted = true;
     this.error = '';
 
-    // Stop here if form is invalid
     if (this.loginForm.invalid) {
       return;
     }
 
+    this.isLoading = true;
+
     const { email, role } = this.loginForm.value;
-    this.authService.login(email, role).subscribe({
-      next: () => {
-        this.redirectToDashboard(role);
-      },
-      error: err => {
-        this.error = err.message || 'Login failed. Please check credentials.';
-      }
-    });
+    
+    // Simulate slight loading latency
+    setTimeout(() => {
+      this.authService.login(email, role).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.toastService.showSuccess(`Welcome back! Logged in as ${role}.`);
+          this.redirectToDashboard(role);
+        },
+        error: err => {
+          this.isLoading = false;
+          this.error = err.message || 'Login failed. Please check credentials.';
+          this.toastService.showError(this.error);
+        }
+      });
+    }, 1000);
+  }
+
+  onSocialLogin(provider: 'Google' | 'Facebook'): void {
+    if (provider === 'Google') {
+      this.isGoogleLoading = true;
+    } else {
+      this.isFacebookLoading = true;
+    }
+
+    // Mock social login process (FastAPI integration ready)
+    setTimeout(() => {
+      this.isGoogleLoading = false;
+      this.isFacebookLoading = false;
+      
+      const email = `${provider.toLowerCase()}@buildtrack.com`;
+      const role = 'Project Manager'; // default PM dashboard access for social logins
+      
+      this.authService.login(email, role).subscribe({
+        next: () => {
+          this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
+          this.redirectToDashboard(role);
+        },
+        error: err => {
+          this.toastService.showError(`Social login via ${provider} failed.`);
+        }
+      });
+    }, 1200);
   }
 
   quickLogin(email: string, role: string): void {
@@ -305,6 +376,9 @@ export class LoginComponent implements OnInit {
         break;
       case 'Client':
         this.router.navigate(['/dashboard/client']);
+        break;
+      case 'Worker':
+        this.router.navigate(['/dashboard/engineer']);
         break;
       default:
         this.router.navigate(['/']);

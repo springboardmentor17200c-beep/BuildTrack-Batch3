@@ -4,22 +4,24 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-
-interface Project {
-  id: number;
-  name: string;
-  category: 'Residential' | 'Commercial' | 'Industrial' | 'Infrastructure' | 'Government Projects';
-  progress: number;
-  budget: string;
-  startDate: string;
-  endDate: string;
-  status: 'On Track' | 'Delayed' | 'Critical' | 'Completed';
-}
+import { ProjectService } from '../../core/services/project.service';
+import { ToastService } from '../../core/services/toast.service';
+import { Project } from '../../core/interfaces/project.interface';
+import { ProjectFormComponent } from './project-form.component';
+import { ToastComponent } from '../../shared/components/toast/toast.component';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, MatButtonModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
+    ProjectFormComponent,
+    ToastComponent
+  ],
   template: `
     <div class="container-fluid">
       <!-- Header -->
@@ -73,19 +75,27 @@ interface Project {
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div *ngIf="isLoadingList" class="d-flex flex-column align-items-center justify-content-center py-5">
+        <span class="spinner-border text-warning mb-2" role="status"></span>
+        <span class="text-muted text-sm">Loading project ledger...</span>
+      </div>
+
       <!-- Projects Grid -->
-      <div class="row g-4">
-        <div class="col-12 col-md-6 col-lg-4" *ngFor="let proj of filteredProjects">
+      <div class="row g-4" *ngIf="!isLoadingList">
+        <div class="col-12 col-md-6 col-lg-4" *ngFor="let proj of paginatedProjects">
           <div class="bt-card h-100 d-flex flex-column justify-content-between">
             <div>
               <div class="d-flex justify-content-between align-items-start">
                 <span class="badge bg-light text-dark text-xs border border-secondary border-opacity-10">{{ proj.category }}</span>
-                <span class="bt-badge text-xxs" 
-                      [class.bt-badge-success]="proj.status === 'On Track' || proj.status === 'Completed'" 
-                      [class.bt-badge-warning]="proj.status === 'Delayed'" 
-                      [class.bt-badge-danger]="proj.status === 'Critical'">
-                  {{ proj.status }}
-                </span>
+                <div class="d-flex gap-1 align-items-center">
+                  <span class="bt-badge text-xxs" 
+                        [class.bt-badge-success]="proj.status === 'On Track' || proj.status === 'Completed'" 
+                        [class.bt-badge-warning]="proj.status === 'Delayed'" 
+                        [class.bt-badge-danger]="proj.status === 'Critical'">
+                    {{ proj.status }}
+                  </span>
+                </div>
               </div>
               <h5 class="fw-bold text-slate-800 mt-3 mb-2">{{ proj.name }}</h5>
               <div class="d-flex justify-content-between text-xs text-muted mb-3">
@@ -107,63 +117,69 @@ interface Project {
                 <span class="text-muted text-xxs text-uppercase fw-semibold">Budget Limit</span>
                 <h6 class="fw-bold text-dark mb-0">{{ proj.budget }}</h6>
               </div>
-              <a [routerLink]="['/projects', proj.id]" class="btn btn-sm btn-bt-outline py-1 px-3 d-flex align-items-center gap-1 text-xs">
-                <span>View Workspace</span>
-                <mat-icon style="font-size: 16px; width: 16px; height: 16px;">arrow_forward</mat-icon>
-              </a>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-bt-outline py-1 px-2 border-0 text-muted" (click)="openEditModal(proj)">
+                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">edit</mat-icon>
+                </button>
+                <button type="button" class="btn btn-sm btn-bt-outline py-1 px-2 border-0 text-danger" (click)="confirmDelete(proj)">
+                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">delete</mat-icon>
+                </button>
+                <a [routerLink]="['/projects', proj.id]" class="btn btn-sm btn-bt-outline py-1 px-3 d-flex align-items-center gap-1 text-xs">
+                  <span>View Workspace</span>
+                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">arrow_forward</mat-icon>
+                </a>
+              </div>
             </div>
           </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div class="col-12 text-center py-5" *ngIf="filteredProjects.length === 0">
+          <mat-icon class="text-muted fs-1 mb-2" style="width: 40px; height: 40px;">folder_open</mat-icon>
+          <p class="text-muted mb-0">No matching projects found in ledger.</p>
         </div>
       </div>
 
-      <!-- Add Project Modal -->
-      <div *ngIf="showAddModal" class="modal-overlay d-flex align-items-center justify-content-center">
-        <div class="modal-card bg-white p-4 rounded shadow-lg" style="width: 500px;">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0">Create Construction Project</h5>
-            <button class="btn-close-custom" (click)="closeModal()">
-              <mat-icon>close</mat-icon>
+      <!-- Pagination Footer -->
+      <div class="d-flex justify-content-between align-items-center mt-4 border-top border-light pt-3" *ngIf="!isLoadingList && totalPages > 1">
+        <span class="text-muted text-xs">Showing {{ (currentPage-1)*pageSize + 1 }} - {{ Math.min(currentPage*pageSize, filteredProjects.length) }} of {{ filteredProjects.length }}</span>
+        <div class="d-inline-flex gap-2">
+          <button class="btn btn-sm btn-bt-outline py-1 px-3" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+            Previous
+          </button>
+          <button class="btn btn-sm btn-bt-outline py-1 px-3" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+            Next
+          </button>
+        </div>
+      </div>
+
+      <!-- Reusable Project Form Child Component -->
+      <app-project-form *ngIf="showFormModal" 
+                        [project]="selectedProject" 
+                        [isLoading]="isSaving"
+                        (save)="onSaveProject($event)" 
+                        (cancel)="closeFormModal()">
+      </app-project-form>
+
+      <!-- Delete Confirmation Dialog -->
+      <div *ngIf="showDeleteConfirm" class="modal-overlay d-flex align-items-center justify-content-center">
+        <div class="modal-card bg-white p-4 rounded shadow-lg fade-in" style="width: 400px; max-width: 90%;">
+          <h5 class="fw-bold mb-2 text-danger d-flex align-items-center gap-2">
+            <mat-icon>warning</mat-icon>
+            <span>Delete Project</span>
+          </h5>
+          <p class="text-muted text-sm mb-4">Are you absolutely sure you want to delete project <strong>{{ selectedProject?.name }}</strong>? This action is irreversible.</p>
+          <div class="d-flex justify-content-end gap-2 border-top border-light pt-3">
+            <button class="btn btn-bt-outline py-2" (click)="closeDeleteModal()" [disabled]="isDeleting">Cancel</button>
+            <button class="btn btn-danger py-2 d-flex align-items-center gap-1 text-white border-0" (click)="onDeleteProject()" [disabled]="isDeleting" style="background-color: #ef4444;">
+              <span *ngIf="isDeleting" class="spinner-border spinner-border-sm" role="status"></span>
+              <span>Confirm Delete</span>
             </button>
           </div>
-          <form [formGroup]="projectForm" (ngSubmit)="saveProject()">
-            <div class="mb-3">
-              <label class="bt-form-label">Project Name</label>
-              <input type="text" class="form-control bt-form-control" formControlName="name" placeholder="e.g. Oakridge Housing">
-            </div>
-            <div class="row mb-3 g-2">
-              <div class="col-6">
-                <label class="bt-form-label">Category</label>
-                <select class="form-select bt-form-control" formControlName="category">
-                  <option value="Residential">Residential</option>
-                  <option value="Commercial">Commercial</option>
-                  <option value="Industrial">Industrial</option>
-                  <option value="Infrastructure">Infrastructure</option>
-                  <option value="Government Projects">Government Projects</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="bt-form-label">Budget</label>
-                <input type="text" class="form-control bt-form-control" formControlName="budget" placeholder="e.g. $1.2M">
-              </div>
-            </div>
-            <div class="row mb-3 g-2">
-              <div class="col-6">
-                <label class="bt-form-label">Start Date</label>
-                <input type="date" class="form-control bt-form-control" formControlName="startDate">
-              </div>
-              <div class="col-6">
-                <label class="bt-form-label">Target Completion</label>
-                <input type="date" class="form-control bt-form-control" formControlName="endDate">
-              </div>
-            </div>
-            <div class="d-flex justify-content-end gap-2 mt-4">
-              <button type="button" class="btn btn-bt-outline py-2" (click)="closeModal()">Cancel</button>
-              <button type="submit" class="btn btn-bt-primary py-2" [disabled]="projectForm.invalid">Create</button>
-            </div>
-          </form>
         </div>
       </div>
     </div>
+    <app-toast></app-toast>
   `,
   styles: [`
     .text-xxs { font-size: 0.72rem; }
@@ -181,51 +197,81 @@ interface Project {
     }
     .modal-card {
       border: 1px solid rgba(255, 255, 255, 0.1);
-      animation: fadeIn 0.3s ease;
-    }
-    .btn-close-custom {
-      background: transparent;
-      border: none;
-      color: var(--slate-400);
-      cursor: pointer;
-    }
-    .btn-close-custom:hover {
-      color: var(--slate-800);
     }
   `]
 })
 export class ProjectListComponent implements OnInit {
-  projects: Project[] = [
-    { id: 1, name: 'Metropolitan Commercial Plaza', category: 'Commercial', progress: 85, budget: '$1.5M', startDate: '2026-01-10', endDate: '2026-09-15', status: 'On Track' },
-    { id: 2, name: 'Riverside Residential Township', category: 'Residential', progress: 48, budget: '$2.0M', startDate: '2026-02-15', endDate: '2026-12-20', status: 'Delayed' },
-    { id: 3, name: 'Industrial Cold Storage Unit', category: 'Industrial', progress: 92, budget: '$800k', startDate: '2026-03-01', endDate: '2026-08-30', status: 'On Track' },
-    { id: 4, name: 'State Highway Bypass Route', category: 'Infrastructure', progress: 24, budget: '$3.5M', startDate: '2026-04-10', endDate: '2027-06-30', status: 'Critical' },
-    { id: 5, name: 'Metro Line Bridge Foundations', category: 'Government Projects', progress: 60, budget: '$5.0M', startDate: '2025-11-01', endDate: '2026-11-30', status: 'On Track' }
-  ];
-
+  projects: Project[] = [];
   filteredProjects: Project[] = [];
+  paginatedProjects: Project[] = [];
+
+  // Filters State
   searchTerm = '';
   selectedCategory = 'All';
   selectedStatus = 'All';
 
-  showAddModal = false;
-  projectForm!: FormGroup;
+  // Pagination State
+  currentPage = 1;
+  pageSize = 3;
+  totalPages = 1;
+  Math = Math; // reference Math inside template
 
-  constructor(private formBuilder: FormBuilder) {}
+  // Loading indicators
+  isLoadingList = false;
+  isSaving = false;
+  isDeleting = false;
+
+  // Modals state
+  showFormModal = false;
+  showDeleteConfirm = false;
+  selectedProject: Project | null = null;
+
+  constructor(
+    private projectService: ProjectService,
+    private toastService: ToastService
+  ) {}
 
   ngOnInit(): void {
-    this.filteredProjects = [...this.projects];
-    this.initProjectForm();
+    this.loadProjects();
   }
 
-  initProjectForm(): void {
-    this.projectForm = this.formBuilder.group({
-      name: ['', Validators.required],
-      category: ['Residential', Validators.required],
-      budget: ['', Validators.required],
-      startDate: ['', Validators.required],
-      endDate: ['', Validators.required]
+  loadProjects(): void {
+    this.isLoadingList = true;
+    this.projectService.getProjects().subscribe({
+      next: (list) => {
+        this.projects = list;
+        this.applyFilters();
+        this.isLoadingList = false;
+      },
+      error: () => {
+        this.isLoadingList = false;
+        this.toastService.showError('Failed to load project portfolio.');
+      }
     });
+  }
+
+  applyFilters(): void {
+    this.filteredProjects = this.projects.filter(p => {
+      const matchSearch = p.name.toLowerCase().includes(this.searchTerm);
+      const matchCategory = this.selectedCategory === 'All' || p.category === this.selectedCategory;
+      const matchStatus = this.selectedStatus === 'All' || p.status === this.selectedStatus;
+      return matchSearch && matchCategory && matchStatus;
+    });
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredProjects.length / this.pageSize) || 1;
+    const startIdx = (this.currentPage - 1) * this.pageSize;
+    this.paginatedProjects = this.filteredProjects.slice(startIdx, startIdx + this.pageSize);
+  }
+
+  changePage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
   }
 
   onSearch(event: any): void {
@@ -243,40 +289,88 @@ export class ProjectListComponent implements OnInit {
     this.applyFilters();
   }
 
-  applyFilters(): void {
-    this.filteredProjects = this.projects.filter(p => {
-      const matchSearch = p.name.toLowerCase().includes(this.searchTerm);
-      const matchCategory = this.selectedCategory === 'All' || p.category === this.selectedCategory;
-      const matchStatus = this.selectedStatus === 'All' || p.status === this.selectedStatus;
-      return matchSearch && matchCategory && matchStatus;
-    });
-  }
-
   openAddModal(): void {
-    this.showAddModal = true;
+    this.selectedProject = null;
+    this.showFormModal = true;
   }
 
-  closeModal(): void {
-    this.showAddModal = false;
-    this.projectForm.reset({ category: 'Residential' });
+  openEditModal(project: Project): void {
+    this.selectedProject = { ...project };
+    this.showFormModal = true;
   }
 
-  saveProject(): void {
-    if (this.projectForm.valid) {
-      const formVal = this.projectForm.value;
-      const newProject: Project = {
-        id: this.projects.length + 1,
-        name: formVal.name,
-        category: formVal.category,
-        progress: 0,
-        budget: formVal.budget,
-        startDate: formVal.startDate,
-        endDate: formVal.endDate,
-        status: 'On Track'
+  closeFormModal(): void {
+    this.showFormModal = false;
+    this.selectedProject = null;
+  }
+
+  confirmDelete(project: Project): void {
+    this.selectedProject = project;
+    this.showDeleteConfirm = true;
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteConfirm = false;
+    this.selectedProject = null;
+  }
+
+  onSaveProject(formValue: any): void {
+    this.isSaving = true;
+    if (this.selectedProject) {
+      // Edit mode
+      const updated: Project = {
+        ...this.selectedProject,
+        ...formValue
       };
-      this.projects.unshift(newProject);
-      this.applyFilters();
-      this.closeModal();
+      this.projectService.updateProject(updated).subscribe({
+        next: () => {
+          this.isSaving = false;
+          this.toastService.showSuccess('Project details updated successfully.');
+          this.loadProjects();
+          this.closeFormModal();
+        },
+        error: () => {
+          this.isSaving = false;
+          this.toastService.showError('Failed to save project changes.');
+        }
+      });
+    } else {
+      // Create mode
+      this.projectService.createProject(formValue).subscribe({
+        next: () => {
+          this.isSaving = false;
+          this.toastService.showSuccess('New construction project created.');
+          this.loadProjects();
+          this.closeFormModal();
+        },
+        error: () => {
+          this.isSaving = false;
+          this.toastService.showError('Failed to create new project.');
+        }
+      });
+    }
+  }
+
+  onDeleteProject(): void {
+    if (this.selectedProject) {
+      this.isDeleting = true;
+      this.projectService.deleteProject(this.selectedProject.id).subscribe({
+        next: (success) => {
+          this.isDeleting = false;
+          if (success) {
+            this.toastService.showSuccess('Project deleted successfully.');
+            this.loadProjects();
+          } else {
+            this.toastService.showError('Unable to delete project.');
+          }
+          this.closeDeleteModal();
+        },
+        error: () => {
+          this.isDeleting = false;
+          this.toastService.showError('Error executing deletion request.');
+          this.closeDeleteModal();
+        }
+      });
     }
   }
 }

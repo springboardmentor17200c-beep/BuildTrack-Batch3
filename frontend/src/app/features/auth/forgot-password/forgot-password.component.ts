@@ -1,13 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { OtpService } from '../../../core/services/otp.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ToastComponent } from '../../../shared/components/toast/toast.component';
 
 @Component({
   selector: 'app-forgot-password',
@@ -20,7 +23,8 @@ import { AuthService } from '../../../core/services/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    ToastComponent
   ],
   template: `
     <div class="auth-container d-flex align-items-center justify-content-center min-vh-100 p-4">
@@ -51,54 +55,133 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <!-- Right Form Column -->
         <div class="col-lg-6 p-5 bg-white d-flex flex-column justify-content-center">
-          <div class="text-center text-lg-start mb-4">
-            <h2 class="fw-bold mb-1 fs-3">Reset Password</h2>
-            <p class="text-muted text-sm">Retrieve access to your BuildTrack account</p>
+          <!-- Step 1: Email Form -->
+          <div *ngIf="step === 1" class="fade-in">
+            <div class="text-center text-lg-start mb-4">
+              <h2 class="fw-bold mb-1 fs-3">Forgot Password</h2>
+              <p class="text-muted text-sm">Enter your email to receive a verification code</p>
+            </div>
+
+            <form [formGroup]="emailForm" (ngSubmit)="onRequestOtp()" class="d-flex flex-column gap-3">
+              <div class="form-group-custom">
+                <label class="bt-form-label">Registered Email Address</label>
+                <input type="email" class="form-control bt-form-control" formControlName="email" placeholder="name@company.com"
+                       [class.is-invalid]="submittedEmail && fe['email'].errors">
+                <div *ngIf="submittedEmail && fe['email'].errors" class="invalid-feedback text-xs">
+                  <span *ngIf="fe['email'].errors['required']">Email is required</span>
+                  <span *ngIf="fe['email'].errors['email']">Please enter a valid email address</span>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2" [disabled]="isLoading">
+                <span *ngIf="!isLoading">Send Verification Code</span>
+                <span *ngIf="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <mat-icon *ngIf="!isLoading" style="font-size: 20px; width: 20px; height: 20px;">send_to_mobile</mat-icon>
+              </button>
+
+              <a routerLink="/login" class="btn btn-bt-outline w-100 py-3 d-flex align-items-center justify-content-center gap-2 mt-2" [class.disabled]="isLoading">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Cancel & Sign In</span>
+              </a>
+            </form>
           </div>
 
-          <!-- Success State -->
-          <div *ngIf="success" class="text-center py-4 fade-in">
+          <!-- Step 2: OTP Verification Form -->
+          <div *ngIf="step === 2" class="fade-in">
+            <div class="text-center text-lg-start mb-4">
+              <h2 class="fw-bold mb-1 fs-3">Verify OTP</h2>
+              <p class="text-muted text-sm">Enter the 6-digit code sent to your email (Check browser console)</p>
+            </div>
+
+            <form [formGroup]="otpForm" (ngSubmit)="onVerifyOtp()" class="d-flex flex-column gap-3">
+              <div class="form-group-custom">
+                <label class="bt-form-label">Verification Code (OTP)</label>
+                <input type="text" class="form-control bt-form-control text-center fs-4 letter-spacing-wide" formControlName="otp" placeholder="000000" maxlength="6"
+                       [class.is-invalid]="submittedOtp && fo['otp'].errors">
+                <div *ngIf="submittedOtp && fo['otp'].errors" class="invalid-feedback text-xs text-start">
+                  <span *ngIf="fo['otp'].errors['required']">Verification code is required</span>
+                  <span *ngIf="fo['otp'].errors['pattern']">Verification code must be exactly 6 digits</span>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2" [disabled]="isLoading">
+                <span *ngIf="!isLoading">Verify Code</span>
+                <span *ngIf="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <mat-icon *ngIf="!isLoading" style="font-size: 20px; width: 20px; height: 20px;">verified_user</mat-icon>
+              </button>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <button type="button" class="btn btn-link text-warning text-xs text-decoration-none fw-semibold p-0" (click)="onResendOtp()" [disabled]="isLoading">
+                  Resend OTP
+                </button>
+                <button type="button" class="btn btn-link text-muted text-xs text-decoration-none p-0" (click)="changeStep(1)" [disabled]="isLoading">
+                  Change Email
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Reset Password Form -->
+          <div *ngIf="step === 3" class="fade-in">
+            <div class="text-center text-lg-start mb-4">
+              <h2 class="fw-bold mb-1 fs-3">Choose New Password</h2>
+              <p class="text-muted text-sm">Please enter a new secure password for your account</p>
+            </div>
+
+            <form [formGroup]="passwordForm" (ngSubmit)="onResetPassword()" class="d-flex flex-column gap-3">
+              <!-- Password Field -->
+              <div class="form-group-custom">
+                <label class="bt-form-label">New Password</label>
+                <input type="password" class="form-control bt-form-control" formControlName="password" placeholder="••••••••"
+                       [class.is-invalid]="submittedPassword && fp['password'].errors">
+                <div *ngIf="submittedPassword && fp['password'].errors" class="invalid-feedback text-xs">
+                  <span *ngIf="fp['password'].errors['required']">Password is required</span>
+                  <span *ngIf="fp['password'].errors['minlength']">Password must be at least 6 characters</span>
+                </div>
+              </div>
+
+              <!-- Confirm Password Field -->
+              <div class="form-group-custom">
+                <label class="bt-form-label">Confirm New Password</label>
+                <input type="password" class="form-control bt-form-control" formControlName="confirmPassword" placeholder="••••••••"
+                       [class.is-invalid]="submittedPassword && fp['confirmPassword'].errors">
+                <div *ngIf="submittedPassword && fp['confirmPassword'].errors" class="invalid-feedback text-xs">
+                  <span *ngIf="fp['confirmPassword'].errors['required']">Confirmation is required</span>
+                  <span *ngIf="fp['confirmPassword'].errors['passwordMismatch']">Passwords must match</span>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2" [disabled]="isLoading">
+                <span *ngIf="!isLoading">Update Password</span>
+                <span *ngIf="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <mat-icon *ngIf="!isLoading" style="font-size: 20px; width: 20px; height: 20px;">lock_reset</mat-icon>
+              </button>
+            </form>
+          </div>
+
+          <!-- Step 4: Success State -->
+          <div *ngIf="step === 4" class="text-center py-4 fade-in">
             <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-circle mb-3" style="width: 60px; height: 60px;">
               <mat-icon style="font-size: 32px; width: 32px; height: 32px;">check_circle</mat-icon>
             </div>
-            <h4 class="fw-bold text-dark">Reset Email Sent</h4>
-            <p class="text-muted text-sm px-3 mb-4">We've sent recovery details to the email <strong>{{ resetEmail }}</strong>. Please check your inbox and spam folders.</p>
+            <h4 class="fw-bold text-dark">Password Updated</h4>
+            <p class="text-muted text-sm px-3 mb-4">Your account credentials have been successfully updated. You can now log in using your new password.</p>
+            
             <a routerLink="/login" class="btn btn-bt-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
               <mat-icon>arrow_back</mat-icon>
               <span>Back to Sign In</span>
             </a>
           </div>
-
-          <!-- Form State -->
-          <form *ngIf="!success" [formGroup]="resetForm" (ngSubmit)="onSubmit()" class="d-flex flex-column gap-3">
-            <div class="form-group-custom">
-              <label class="bt-form-label">Registered Email Address</label>
-              <input type="email" class="form-control bt-form-control" formControlName="email" placeholder="name@company.com"
-                     [class.is-invalid]="submitted && f['email'].errors">
-              <div *ngIf="submitted && f['email'].errors" class="invalid-feedback text-xs">
-                <span *ngIf="f['email'].errors['required']">Email is required</span>
-                <span *ngIf="f['email'].errors['email']">Please enter a valid email address</span>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 fs-6 d-flex align-items-center justify-content-center gap-2">
-              <span>Send Recovery Link</span>
-              <mat-icon style="font-size: 20px; width: 20px; height: 20px;">send_to_mobile</mat-icon>
-            </button>
-
-            <!-- Error message banner -->
-            <div *ngIf="error" class="alert alert-danger py-2 px-3 rounded text-xs mt-2" role="alert">
-              {{ error }}
-            </div>
-
-            <a routerLink="/login" class="btn btn-bt-outline w-100 py-3 d-flex align-items-center justify-content-center gap-2 mt-2">
-              <mat-icon>arrow_back</mat-icon>
-              <span>Cancel & Sign In</span>
-            </a>
-          </form>
+          
+          <!-- Shared error alert banner inside step forms -->
+          <div *ngIf="error && step !== 4" class="alert alert-danger py-2 px-3 rounded text-xs mt-3 mb-0" role="alert">
+            {{ error }}
+          </div>
         </div>
       </div>
     </div>
+    <!-- Reusable Toast Alert Component -->
+    <app-toast></app-toast>
   `,
   styles: [`
     .auth-container {
@@ -155,48 +238,177 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .form-group-custom {
       display: flex;
-      flex-column: column;
+      flex-direction: column;
       margin-bottom: 0.5rem;
+    }
+    .letter-spacing-wide {
+      letter-spacing: 0.2em;
     }
   `]
 })
 export class ForgotPasswordComponent implements OnInit {
-  resetForm!: FormGroup;
-  submitted = false;
-  success = false;
-  resetEmail = '';
+  step = 1;
+  isLoading = false;
   error = '';
+  resetEmail = '';
+
+  // Step 1: Email Request Form
+  emailForm!: FormGroup;
+  submittedEmail = false;
+
+  // Step 2: OTP Verification Form
+  otpForm!: FormGroup;
+  submittedOtp = false;
+
+  // Step 3: Password Update Form
+  passwordForm!: FormGroup;
+  submittedPassword = false;
 
   constructor(
     private formBuilder: FormBuilder,
-    private authService: AuthService
+    private otpService: OtpService,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
-    this.resetForm = this.formBuilder.group({
+    this.emailForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]]
+    });
+
+    this.otpForm = this.formBuilder.group({
+      otp: ['', [Validators.required, Validators.pattern('^[0-9]{6}$')]]
+    });
+
+    this.passwordForm = this.formBuilder.group({
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required]
+    }, {
+      validators: this.mustMatch('password', 'confirmPassword')
     });
   }
 
-  get f() { return this.resetForm.controls; }
+  // Getters for easy form controls access
+  get fe() { return this.emailForm.controls; }
+  get fo() { return this.otpForm.controls; }
+  get fp() { return this.passwordForm.controls; }
 
-  onSubmit(): void {
-    this.submitted = true;
+  // Custom password matching validator
+  mustMatch(controlName: string, matchingControlName: string) {
+    return (group: AbstractControl) => {
+      const formGroup = group as FormGroup;
+      const control = formGroup.controls[controlName];
+      const matchingControl = formGroup.controls[matchingControlName];
+
+      if (!control || !matchingControl) return null;
+
+      if (matchingControl.errors && !matchingControl.errors['passwordMismatch']) {
+        return null;
+      }
+
+      if (control.value !== matchingControl.value) {
+        matchingControl.setErrors({ passwordMismatch: true });
+      } else {
+        matchingControl.setErrors(null);
+      }
+      return null;
+    };
+  }
+
+  changeStep(newStep: number): void {
+    this.step = newStep;
+    this.error = '';
+    this.isLoading = false;
+  }
+
+  // Action 1: Submit Email to trigger OTP
+  onRequestOtp(): void {
+    this.submittedEmail = true;
     this.error = '';
 
-    if (this.resetForm.invalid) {
+    if (this.emailForm.invalid) {
       return;
     }
 
-    const email = this.resetForm.value.email;
-    this.authService.resetPassword(email).subscribe({
+    this.isLoading = true;
+    this.resetEmail = this.emailForm.value.email;
+
+    this.otpService.sendOtp(this.resetEmail).subscribe({
       next: () => {
-        this.resetEmail = email;
-        this.success = true;
+        this.isLoading = false;
+        this.toastService.showSuccess(`Verification OTP sent to ${this.resetEmail}.`);
+        this.changeStep(2);
       },
-      error: err => {
-        this.error = err.message || 'Error executing request.';
+      error: (err) => {
+        this.isLoading = false;
+        this.error = err.message || 'Failed to dispatch verification code.';
+        this.toastService.showError(this.error);
       }
     });
+  }
+
+  // Action 2: Trigger OTP resend
+  onResendOtp(): void {
+    this.isLoading = true;
+    this.error = '';
+    this.otpService.sendOtp(this.resetEmail).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.toastService.showSuccess('A fresh OTP code has been logged to your console.');
+      },
+      error: () => {
+        this.isLoading = false;
+        this.toastService.showError('Resend limit reached, please wait.');
+      }
+    });
+  }
+
+  // Action 3: Verify OTP code
+  onVerifyOtp(): void {
+    this.submittedOtp = true;
+    this.error = '';
+
+    if (this.otpForm.invalid) {
+      return;
+    }
+
+    this.isLoading = true;
+    const otp = this.otpForm.value.otp;
+
+    this.otpService.verifyOtp(otp).subscribe({
+      next: (isValid) => {
+        this.isLoading = false;
+        if (isValid) {
+          this.toastService.showSuccess('OTP verification successful!');
+          this.changeStep(3);
+        } else {
+          this.error = 'Invalid 6-digit verification code. Please check console logs.';
+          this.toastService.showError(this.error);
+        }
+      },
+      error: () => {
+        this.isLoading = false;
+        this.error = 'An error occurred during verification.';
+        this.toastService.showError(this.error);
+      }
+    });
+  }
+
+  // Action 4: Update Password
+  onResetPassword(): void {
+    this.submittedPassword = true;
+    this.error = '';
+
+    if (this.passwordForm.invalid) {
+      return;
+    }
+
+    this.isLoading = true;
+    
+    // Simulate updating credentials in auth service with a delay
+    setTimeout(() => {
+      this.isLoading = false;
+      this.toastService.showSuccess('Password updated successfully!');
+      this.changeStep(4);
+    }, 1000);
   }
 }

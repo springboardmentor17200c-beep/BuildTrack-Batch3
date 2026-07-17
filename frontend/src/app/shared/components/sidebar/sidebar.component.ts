@@ -189,6 +189,7 @@ export class SidebarComponent implements OnInit {
       case 'Site Engineer': return '/dashboard/engineer';
       case 'Contractor': return '/dashboard/contractor';
       case 'Client': return '/dashboard/client';
+      case 'Worker': return '/dashboard/engineer';
       default: return '/login';
     }
   }
@@ -198,7 +199,7 @@ export class SidebarComponent implements OnInit {
       projects: { label: 'Projects', route: '/projects', icon: 'business' },
       resources: { label: 'Resources', route: '/resources', icon: 'handyman' },
       inventory: { label: 'Inventory', route: '/inventory', icon: 'inventory_2' },
-      attendance: { label: 'Attendance', route: '/attendance', icon: 'badge' },
+      attendance: { label: 'Workforce', route: '/workforce', icon: 'badge' },
       analytics: { label: 'Analytics', route: '/analytics', icon: 'analytics' }
     };
 
@@ -233,6 +234,12 @@ export class SidebarComponent implements OnInit {
         return [
           allItems['projects'],
           allItems['analytics']
+        ];
+      case 'Worker':
+        return [
+          { label: 'Attendance Console', route: '/workforce', icon: 'watch_later' },
+          { label: 'Shift Schedule', route: '/workforce', icon: 'calendar_month' },
+          { label: 'My Assigned Project', route: '/projects/1', icon: 'assignment' }
         ];
       default:
         return [];
