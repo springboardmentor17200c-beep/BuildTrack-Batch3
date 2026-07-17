@@ -302,26 +302,29 @@ export class LoginComponent implements OnInit {
   onSubmit(): void {
     this.submitted = true;
     this.error = '';
-
+  
     if (this.loginForm.invalid) {
       return;
     }
 
     this.isLoading = true;
 
-    const { email, role } = this.loginForm.value;
+    const { email, password, role } = this.loginForm.value;
     
     // Simulate slight loading latency
     setTimeout(() => {
-      this.authService.login(email, role).subscribe({
-        next: () => {
+      console.log("Login button clicked");
+    this.authService.login(email, password, role).subscribe({
+        next: (response) => {
           this.isLoading = false;
           this.toastService.showSuccess(`Welcome back! Logged in as ${role}.`);
-          this.redirectToDashboard(role);
+          console.log("Login Success", response);
+        this.redirectToDashboard(role);
         },
         error: err => {
           this.isLoading = false;
-          this.error = err.message || 'Login failed. Please check credentials.';
+          console.log("Login Error", err);
+        this.error = err.message || 'Login failed. Please check credentials.';
           this.toastService.showError(this.error);
         }
       });

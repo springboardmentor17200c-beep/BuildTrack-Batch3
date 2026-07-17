@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface User {
   name: string;
@@ -12,14 +14,19 @@ export interface User {
   providedIn: 'root'
 })
 export class AuthService {
+
+  private apiUrl = 'http://127.0.0.1:8000/users';
+
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser$: Observable<User | null>;
 
-  constructor() {
+  constructor(private http: HttpClient) {
     const storedUser = localStorage.getItem('bt_user');
+
     this.currentUserSubject = new BehaviorSubject<User | null>(
       storedUser ? JSON.parse(storedUser) : null
     );
+
     this.currentUser$ = this.currentUserSubject.asObservable();
   }
 
@@ -32,66 +39,89 @@ export class AuthService {
   }
 
   public get userRole(): string | null {
-    return this.currentUserValue ? this.currentUserValue.role : null;
+    return this.currentUserValue?.role || null;
   }
 
-  login(email: string, role: string): Observable<User> {
-    // Simulated JWT login. Any credentials will pass.
-    const mockUser: User = {
-      name: this.getUserNameByRole(role),
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
+  login(email: string, password: string, role: string): Observable<any> {
+
+    console.log("AuthService login called");
+
+    const body = new URLSearchParams();
+    body.set("username", email);
+    body.set("password", password);
+
+    const headers = new HttpHeaders({
+      "Content-Type": "application/x-www-form-urlencoded"
+    });
+
+    return this.http.post<any>(
+      `${this.apiUrl}/login`,
+      body.toString(),
+      { headers }
+    ).pipe(
+
+      tap(response => {
+
+        const user: User = {
+          name: email,
+          email: email,
+          role: role,
+          token: response.access_token
+        };
+
+        localStorage.setItem("bt_user", JSON.stringify(user));
+        this.currentUserSubject.next(user);
+
+      })
+
+    );
+
   }
 
-  register(name: string, email: string, role: string): Observable<User> {
-    // Simulated registration
-    const mockUser: User = {
+  register(name: string, email: string, role: string): Observable<any> {
+
+    return this.http.post<any>(`${this.apiUrl}/register`, {
       name: name,
       email: email,
+      password: "password123",
       role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
+      phone: ""
+    });
+
   }
 
   resetPassword(email: string): Observable<boolean> {
-    // Simulated forgot password
-    console.log(`Password reset link sent to: ${email}`);
+
+    console.log("Reset password:", email);
     return of(true);
+
   }
 
   logout(): void {
-    localStorage.removeItem('bt_user');
+
+    localStorage.removeItem("bt_user");
     this.currentUserSubject.next(null);
+
   }
 
   updateProfile(name: string, email: string): Observable<User | null> {
+
     if (this.currentUserValue) {
-      const updatedUser = { ...this.currentUserValue, name, email };
-      localStorage.setItem('bt_user', JSON.stringify(updatedUser));
+
+      const updatedUser: User = {
+        ...this.currentUserValue,
+        name,
+        email
+      };
+
+      localStorage.setItem("bt_user", JSON.stringify(updatedUser));
       this.currentUserSubject.next(updatedUser);
+
       return of(updatedUser);
     }
+
     return of(null);
+
   }
 
-  private getUserNameByRole(role: string): string {
-    switch(role) {
-      case 'Admin': return 'John Doe (Admin)';
-      case 'Project Manager': return 'Sarah Jenkins';
-      case 'Site Engineer': return 'Alex Rivera';
-      case 'Contractor': return 'Marcus Vance';
-      case 'Client': return 'BuildCorp Developments';
-      default: return 'User';
-    }
-  }
 }
