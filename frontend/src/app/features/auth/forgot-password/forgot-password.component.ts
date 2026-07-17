@@ -355,7 +355,7 @@ export class ForgotPasswordComponent implements OnInit {
         this.isLoading = false;
         this.toastService.showSuccess('A fresh OTP code has been logged to your console.');
       },
-      error: ((): any) => {
+      error: () => {
         this.isLoading = false;
         this.toastService.showError('Resend limit reached, please wait.');
       }

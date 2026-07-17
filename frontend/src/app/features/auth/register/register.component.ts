@@ -89,6 +89,7 @@ import { AuthService } from '../../../core/services/auth.service';
                 <option value="Project Manager">Project Manager</option>
                 <option value="Site Engineer">Site Engineer</option>
                 <option value="Contractor">Contractor</option>
+                <option value="Worker">Worker</option>
                 <option value="Client">Client / Owner</option>
               </select>
               <div *ngIf="submitted && f['role'].errors" class="invalid-feedback text-xs">
@@ -201,7 +202,7 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .form-group-custom {
       display: flex;
-      flex-column: column;
+      flex-direction: column;
       margin-bottom: 0.5rem;
     }
     .check-warning:checked {
@@ -295,6 +296,9 @@ export class RegisterComponent implements OnInit {
         break;
       case 'Client':
         this.router.navigate(['/dashboard/client']);
+        break;
+      case 'Worker':
+        this.router.navigate(['/dashboard/engineer']);
         break;
       default:
         this.router.navigate(['/']);

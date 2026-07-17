@@ -66,10 +66,11 @@ import { AuthService, User } from '../../../core/services/auth.service';
               <button mat-menu-item (click)="switchRole('Project Manager')">Project Manager</button>
               <button mat-menu-item (click)="switchRole('Site Engineer')">Site Engineer</button>
               <button mat-menu-item (click)="switchRole('Contractor')">Contractor</button>
+              <button mat-menu-item (click)="switchRole('Worker')">Worker</button>
               <button mat-menu-item (click)="switchRole('Client')">Client</button>
             </mat-menu>
           </div>
-
+ 
           <!-- User Profile Dropdown -->
           <div class="d-flex align-items-center gap-2 border-start border-secondary ps-3">
             <div class="d-none d-lg-flex flex-column text-end">
@@ -80,7 +81,7 @@ import { AuthService, User } from '../../../core/services/auth.service';
             <button mat-icon-button [matMenuTriggerFor]="profileMenu" class="bg-warning text-dark fw-bold rounded-circle border-0 d-flex justify-content-center align-items-center" style="width: 38px; height: 38px;">
               {{ avatarInitials }}
             </button>
-
+ 
             <mat-menu #profileMenu="matMenu">
               <div class="px-3 py-2 border-bottom">
                 <p class="mb-0 fw-semibold text-dark">{{ currentUser.name }}</p>
@@ -94,9 +95,10 @@ import { AuthService, User } from '../../../core/services/auth.service';
                 <button mat-menu-item (click)="switchRole('Project Manager')"><span class="text-sm">Project Manager</span></button>
                 <button mat-menu-item (click)="switchRole('Site Engineer')"><span class="text-sm">Site Engineer</span></button>
                 <button mat-menu-item (click)="switchRole('Contractor')"><span class="text-sm">Contractor</span></button>
+                <button mat-menu-item (click)="switchRole('Worker')"><span class="text-sm">Worker</span></button>
                 <button mat-menu-item (click)="switchRole('Client')"><span class="text-sm">Client</span></button>
               </div>
-
+ 
               <button mat-menu-item (click)="onLogout()">
                 <mat-icon class="text-danger">exit_to_app</mat-icon>
                 <span class="text-danger">Sign Out</span>
@@ -120,7 +122,7 @@ import { AuthService, User } from '../../../core/services/auth.service';
 })
 export class NavbarComponent implements OnInit {
   @Output() toggleSidebar = new EventEmitter<void>();
-
+ 
   currentUser: User | null = null;
   avatarInitials = '';
   notifications = [
@@ -129,21 +131,21 @@ export class NavbarComponent implements OnInit {
     { id: 3, message: 'New material request from Marcus (Contractor)', type: 'info', time: '3h ago' },
     { id: 4, message: 'Budget alert: Site C overhead exceeded by 5%', type: 'danger', time: '1d ago' }
   ];
-
+ 
   constructor(private authService: AuthService, private router: Router) {}
-
+ 
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.avatarInitials = user ? this.calculateInitials(user.name) : '';
     });
   }
-
+ 
   private calculateInitials(name: string): string {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
-
+ 
   getNotificationIcon(type: string): string {
     switch (type) {
       case 'success': return 'check_circle';
@@ -152,7 +154,7 @@ export class NavbarComponent implements OnInit {
       default: return 'info';
     }
   }
-
+ 
   getNotificationClass(type: string): string {
     switch (type) {
       case 'success': return 'text-success';
@@ -161,15 +163,15 @@ export class NavbarComponent implements OnInit {
       default: return 'text-info';
     }
   }
-
+ 
   switchRole(role: string): void {
     if (this.currentUser) {
-      this.authService.login(this.currentUser.email, "password123",role).subscribe(updatedUser => {
+      this.authService.login(this.currentUser.email, "password123", role).subscribe(updatedUser => {
         this.redirectToDashboard(role);
       });
     }
   }
-
+ 
   redirectToDashboard(role: string): void {
     switch (role) {
       case 'Admin':
@@ -186,6 +188,9 @@ export class NavbarComponent implements OnInit {
         break;
       case 'Client':
         this.router.navigate(['/dashboard/client']);
+        break;
+      case 'Worker':
+        this.router.navigate(['/dashboard/engineer']);
         break;
       default:
         this.router.navigate(['/login']);

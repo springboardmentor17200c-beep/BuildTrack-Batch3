@@ -302,7 +302,7 @@ export class LoginComponent implements OnInit {
   onSubmit(): void {
     this.submitted = true;
     this.error = '';
-  
+
     if (this.loginForm.invalid) {
       return;
     }
@@ -313,18 +313,15 @@ export class LoginComponent implements OnInit {
     
     // Simulate slight loading latency
     setTimeout(() => {
-      console.log("Login button clicked");
-    this.authService.login(email, password, role).subscribe({
-        next: (response) => {
+      this.authService.login(email, password, role).subscribe({
+        next: () => {
           this.isLoading = false;
           this.toastService.showSuccess(`Welcome back! Logged in as ${role}.`);
-          console.log("Login Success", response);
-        this.redirectToDashboard(role);
+          this.redirectToDashboard(role);
         },
-        error: err => {
+        error: (err: any) => {
           this.isLoading = false;
-          console.log("Login Error", err);
-        this.error = err.message || 'Login failed. Please check credentials.';
+          this.error = err.message || 'Login failed. Please check credentials.';
           this.toastService.showError(this.error);
         }
       });
@@ -346,12 +343,12 @@ export class LoginComponent implements OnInit {
       const email = `${provider.toLowerCase()}@buildtrack.com`;
       const role = 'Project Manager'; // default PM dashboard access for social logins
       
-     this.authService.login(email, 'password123', role).subscribe({
+      this.authService.login(email, 'password123', role).subscribe({
         next: () => {
           this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
           this.redirectToDashboard(role);
         },
-        error: err => {
+        error: (err: any) => {
           this.toastService.showError(`Social login via ${provider} failed.`);
         }
       });

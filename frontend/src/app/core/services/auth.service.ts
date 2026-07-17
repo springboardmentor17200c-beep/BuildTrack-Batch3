@@ -42,52 +42,51 @@ export class AuthService {
     return this.currentUserValue?.role || null;
   }
 
+  private getMockName(email: string): string {
+    const emailLower = email.toLowerCase();
+    if (emailLower.startsWith('admin')) return 'Admin User';
+    if (emailLower.startsWith('pm')) return 'Liam Thompson';
+    if (emailLower.startsWith('engineer')) return 'Alex Rivera';
+    if (emailLower.startsWith('contractor')) return 'Marcus Vance';
+    if (emailLower.startsWith('client')) return 'Olivia Martinez';
+    if (emailLower.startsWith('worker')) return 'Liam Thompson';
+    if (emailLower.startsWith('google')) return 'Google User';
+    if (emailLower.startsWith('facebook')) return 'Facebook User';
+    
+    const username = email.split('@')[0];
+    return username.charAt(0).toUpperCase() + username.slice(1);
+  }
+
   login(email: string, password: string, role: string): Observable<any> {
+    console.log("AuthService login called (mock-only)");
 
-    console.log("AuthService login called");
+    const user: User = {
+      name: this.getMockName(email),
+      email: email,
+      role: role,
+      token: 'mock-jwt-token-id'
+    };
 
-    const body = new URLSearchParams();
-    body.set("username", email);
-    body.set("password", password);
+    localStorage.setItem("bt_user", JSON.stringify(user));
+    this.currentUserSubject.next(user);
 
-    const headers = new HttpHeaders({
-      "Content-Type": "application/x-www-form-urlencoded"
-    });
-
-    return this.http.post<any>(
-      `${this.apiUrl}/login`,
-      body.toString(),
-      { headers }
-    ).pipe(
-
-      tap(response => {
-
-        const user: User = {
-          name: email,
-          email: email,
-          role: role,
-          token: response.access_token
-        };
-
-        localStorage.setItem("bt_user", JSON.stringify(user));
-        this.currentUserSubject.next(user);
-
-      })
-
-    );
-
+    return of({ access_token: 'mock-jwt-token-id' });
   }
 
   register(name: string, email: string, role: string): Observable<any> {
+    console.log("AuthService register called (mock-only)");
 
-    return this.http.post<any>(`${this.apiUrl}/register`, {
+    const user: User = {
       name: name,
       email: email,
-      password: "password123",
       role: role,
-      phone: ""
-    });
+      token: 'mock-jwt-token-id'
+    };
 
+    localStorage.setItem("bt_user", JSON.stringify(user));
+    this.currentUserSubject.next(user);
+
+    return of({ message: "User registered successfully" });
   }
 
   resetPassword(email: string): Observable<boolean> {
