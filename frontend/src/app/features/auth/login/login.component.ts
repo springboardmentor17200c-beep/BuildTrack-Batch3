@@ -346,7 +346,7 @@ export class LoginComponent implements OnInit {
       const email = `${provider.toLowerCase()}@buildtrack.com`;
       const role = 'Project Manager'; // default PM dashboard access for social logins
       
-      this.authService.login(email, role).subscribe({
+     this.authService.login(email, 'password123', role).subscribe({
         next: () => {
           this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
           this.redirectToDashboard(role);
