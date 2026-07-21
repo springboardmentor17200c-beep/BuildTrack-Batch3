@@ -131,3 +131,127 @@ def create_report(db: Session, report: schemas.ReportCreate):
 
 def get_reports(db: Session):
     return db.query(models.Report).all()
+
+
+
+def get_project(db, project_id):
+    return db.query(models.Project).filter(models.Project.id == project_id).first()
+
+
+def update_project(db, project_id, project):
+    db_project = get_project(db, project_id)
+
+    if db_project:
+        db_project.project_name = project.project_name
+        db_project.description = project.description
+        db_project.location = project.location
+        db_project.budget = project.budget
+        db_project.status = project.status
+
+        db.commit()
+        db.refresh(db_project)
+
+    return db_project
+
+
+def delete_project(db, project_id):
+    project = get_project(db, project_id)
+
+    if project:
+        db.delete(project)
+        db.commit()
+
+    return project
+
+
+#attendance --
+def get_attendance(db, worker_id):
+
+    return db.query(models.Attendance)\
+             .filter(models.Attendance.worker_id == worker_id)\
+             .all()
+
+
+def mark_attendance(db, attendance):
+
+    db.add(attendance)
+    db.commit()
+    db.refresh(attendance)
+
+    return attendance
+
+
+#worker management
+def get_workers(db):
+    return db.query(models.Worker).all()
+
+
+def update_worker(db, worker_id, salary):
+
+    worker = db.query(models.Worker)\
+               .filter(models.Worker.id == worker_id)\
+               .first()
+
+    if worker:
+        worker.salary = salary
+        db.commit()
+
+    return worker
+
+
+#inventory management
+
+def get_inventory(db):
+    return db.query(models.Inventory).all()
+
+
+def update_inventory(db, inventory_id, quantity):
+
+    item = db.query(models.Inventory)\
+             .filter(models.Inventory.id == inventory_id)\
+             .first()
+
+    if item:
+        item.quantity = quantity
+        db.commit()
+
+    return item
+
+
+#resources management
+def get_resources(db):
+    return db.query(models.Resource).all()
+
+
+def update_resource_status(db, resource_id, status):
+
+    resource = db.query(models.Resource)\
+                 .filter(models.Resource.id == resource_id)\
+                 .first()
+
+    if resource:
+        resource.status = status
+        db.commit()
+
+    return resource
+
+
+#milestone tracking
+def get_project_milestones(db, project_id):
+    return db.query(models.ProjectMilestone)\
+             .filter(models.ProjectMilestone.project_id == project_id)\
+             .all()
+
+
+def update_milestone(db, milestone_id, status):
+
+    milestone = db.query(models.ProjectMilestone)\
+                  .filter(models.ProjectMilestone.id == milestone_id)\
+                  .first()
+
+    if milestone:
+        milestone.status = status
+        db.commit()
+        db.refresh(milestone)
+
+    return milestone
