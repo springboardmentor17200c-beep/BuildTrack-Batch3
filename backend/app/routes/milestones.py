@@ -4,15 +4,15 @@ from app.database import get_db
 from app import crud, schemas
 
 router = APIRouter(
-    prefix="/inventory",
-    tags=["Inventory"]
+    prefix="/milestones",
+    tags=["Milestones"]
 )
 
 @router.post("/")
-def create_inventory(item: schemas.InventoryCreate,
+def create_milestone(milestone: schemas.MilestoneCreate,
                      db: Session = Depends(get_db)):
-    return crud.create_inventory(db, item)
+    return crud.create_milestone(db, milestone)
 
 @router.get("/")
-def get_inventory(db: Session = Depends(get_db)):
-    return crud.get_inventory(db)
+def get_milestones(db: Session = Depends(get_db)):
+    return crud.get_milestones(db)

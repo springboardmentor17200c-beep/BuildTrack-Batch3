@@ -24,3 +24,47 @@ app.include_router(users.router)
 @app.get("/")
 def home():
     return {"message": "BuildTrack Backend Running"}
+
+
+
+
+
+
+# Import all routers
+from app.routes import (
+    users,
+    projects,
+    milestones,
+    resources,
+    inventory,
+    workers,
+    attendance,
+    procurements,
+    notifications,
+    reports
+)
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="BuildTrack API",
+    version="1.0.0"
+)
+
+# Root API
+@app.get("/")
+def root():
+    return {"message": "Welcome to BuildTrack Backend"}
+
+# Register Routers
+app.include_router(users.router)
+app.include_router(projects.router)
+app.include_router(milestones.router)
+app.include_router(resources.router)
+app.include_router(inventory.router)
+app.include_router(workers.router)
+app.include_router(attendance.router)
+app.include_router(procurements.router)
+app.include_router(notifications.router)
+app.include_router(reports.router)
