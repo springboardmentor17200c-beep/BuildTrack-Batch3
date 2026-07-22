@@ -1,34 +1,51 @@
 from app.database import SessionLocal
-from app.models import *
+from app.models import User, Project
 
 db = SessionLocal()
 
-admin = User(
-    name="Admin",
-    email="admin@buildtrack.com",
-    password="admin123",
-    role="Admin"
-)
+try:
+    # Create Admin
+    admin = User(
+        name="Admin",
+        email="admin@buildtrack.com",
+        password="admin123",
+        role="Admin"
+    )
 
-manager = User(
-    name="Manager",
-    email="manager@buildtrack.com",
-    password="manager123",
-    role="Project Manager"
-)
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
 
-project = Project(
-    project_name="Metro Construction",
-    location="Bhubaneswar",
-    budget=50000000,
-    status="Running",
-    manager_id=2
-)
+    # Create Manager
+    manager = User(
+        name="Manager",
+        email="manager@buildtrack.com",
+        password="manager123",
+        role="Project Manager"
+    )
 
-db.add(admin)
-db.add(manager)
-db.add(project)
+    db.add(manager)
+    db.commit()
+    db.refresh(manager)
 
-db.commit()
+    # Create Project
+    project = Project(
+        project_name="Metro Construction",
+        description="Construction of Metro Rail",
+        location="Bhubaneswar",
+        budget=50000000,
+        status="Running",
+        manager_id=manager.id
+    )
 
-print("Dummy Data Added")
+    db.add(project)
+    db.commit()
+
+    print("Dummy Data Added Successfully!")
+
+except Exception as e:
+    db.rollback()
+    print("Error:", e)
+
+finally:
+    db.close()

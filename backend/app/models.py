@@ -15,6 +15,12 @@ class User(Base):
     phone = Column(String(20))
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Relationships
+    projects = relationship("Project", back_populates="manager")
+    notifications = relationship("Notification", back_populates="user")
+    reports = relationship("Report", back_populates="creator")
+
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -29,6 +35,18 @@ class Project(Base):
     status = Column(String(50))
     manager_id = Column(Integer, ForeignKey("users.id"))
 
+    # Relationships
+    manager = relationship("User", back_populates="projects")
+    milestones = relationship("ProjectMilestone", back_populates="project")
+    resources = relationship("Resource", back_populates="project")
+    inventory = relationship("Inventory", back_populates="project")
+    workers = relationship("Worker", back_populates="project")
+    attendance = relationship("Attendance", back_populates="project")
+    procurements = relationship("Procurement", back_populates="project")
+    reports = relationship("Report", back_populates="project")
+
+
+
 
 class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
@@ -40,6 +58,7 @@ class ProjectMilestone(Base):
     completed_date = Column(Date)
     status = Column(String(30))
 
+    project = relationship("Project", back_populates="milestones") 
 
 class Resource(Base):
     __tablename__ = "resources"
@@ -51,6 +70,7 @@ class Resource(Base):
     quantity = Column(Integer)
     status = Column(String(30))
 
+    project = relationship("Project", back_populates="resources")   
 
 class Inventory(Base):
     __tablename__ = "inventory"
@@ -63,6 +83,9 @@ class Inventory(Base):
     minimum_stock = Column(Integer)
     supplier = Column(String(100))
 
+    project = relationship("Project", back_populates="inventory")       
+    
+
 
 class Worker(Base):
     __tablename__ = "workers"
@@ -73,6 +96,9 @@ class Worker(Base):
     phone = Column(String(20))
     designation = Column(String(100))
     salary = Column(Float)
+
+    project = relationship("Project", back_populates="workers")
+    attendance = relationship("Attendance", back_populates="worker")    
 
 
 class Attendance(Base):
@@ -85,6 +111,12 @@ class Attendance(Base):
     status = Column(String(20))
     check_in = Column(String(20))
     check_out = Column(String(20))
+
+    worker = relationship("Worker", back_populates="attendance")
+    project = relationship("Project", back_populates="attendance")
+
+
+
 
 
 class Procurement(Base):
@@ -99,6 +131,7 @@ class Procurement(Base):
     purchase_date = Column(Date)
     status = Column(String(30))
 
+    project = relationship("Project", back_populates="procurements")
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -110,6 +143,8 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    user = relationship("User", back_populates="notifications")    
+
 
 class Report(Base):
     __tablename__ = "reports"
@@ -120,3 +155,7 @@ class Report(Base):
     report_type = Column(String(50))
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="reports")
+    creator = relationship("User", back_populates="reports")    
+

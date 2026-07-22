@@ -996,3 +996,160 @@ def delete_report(db: Session, report_id: int):
     db.commit()
 
     return db_report
+
+
+
+    from app import models
+
+# ---------------- PROJECTS ----------------
+
+def create_project(db, project):
+    db_project = models.Project(**project.dict())
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+
+def get_projects(db):
+    return db.query(models.Project).all()
+
+
+def get_project(db, project_id: int):
+    return db.query(models.Project).filter(
+        models.Project.id == project_id
+    ).first()
+
+
+def update_project(db, project_id: int, project):
+    db_project = get_project(db, project_id)
+
+    if db_project:
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+
+        db.commit()
+        db.refresh(db_project)
+
+    return db_project
+
+
+def delete_project(db, project_id: int):
+    db_project = get_project(db, project_id)
+
+    if db_project:
+        db.delete(db_project)
+        db.commit()
+
+    return db_project
+
+
+# ---------------- MILESTONES ----------------
+
+def create_milestone(db, milestone):
+    obj = models.ProjectMilestone(**milestone.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_milestones(db):
+    return db.query(models.ProjectMilestone).all()
+
+
+# ---------------- RESOURCES ----------------
+
+def create_resource(db, resource):
+    obj = models.Resource(**resource.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_resources(db):
+    return db.query(models.Resource).all()
+
+# ---------------- INVENTORY ----------------
+
+def create_inventory(db, item):
+    obj = models.Inventory(**item.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_inventory(db):
+    return db.query(models.Inventory).all()
+
+
+# ---------------- WORKERS ----------------
+
+def create_worker(db, worker):
+    obj = models.Worker(**worker.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_workers(db):
+    return db.query(models.Worker).all()
+
+
+# ---------------- ATTENDANCE ----------------
+
+def create_attendance(db, attendance):
+    obj = models.Attendance(**attendance.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_attendance(db):
+    return db.query(models.Attendance).all()
+
+
+# ---------------- PROCUREMENT ----------------
+
+def create_procurement(db, procurement):
+    obj = models.Procurement(**procurement.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_procurements(db):
+    return db.query(models.Procurement).all()
+
+
+# ---------------- NOTIFICATIONS ----------------
+
+def create_notification(db, notification):
+    obj = models.Notification(**notification.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_notifications(db):
+    return db.query(models.Notification).all()
+
+
+# ---------------- REPORTS ----------------
+
+def create_report(db, report):
+    obj = models.Report(**report.dict())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_reports(db):
+    return db.query(models.Report).all()
