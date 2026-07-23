@@ -11,7 +11,7 @@ def create_user(db: Session, user: schemas.UserRegister):
     db_user = models.User(
         name=user.name,
         email=user.email,
-        password=user.password,   # Later replace with hashed password
+        password=hash_password(user.password),   # Later replace with hashed password
         role=user.role,
         phone=user.phone
     )
@@ -52,7 +52,7 @@ def update_user(db: Session, user_id: int, user: schemas.UserRegister):
 
     db_user.name = user.name
     db_user.email = user.email
-    db_user.password = user.password
+    db_user.password = hash_password(user.password)
     db_user.role = user.role
     db_user.phone = user.phone
 
@@ -100,10 +100,9 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     return db_project
 
 
-def get_projects(db: Session):
+def get_projects(db: Session, skip: int = 0, limit: int = 100):
 
-    return db.query(models.Project).all()
-
+   return db.query(models.Project).offset(skip).limit(limit).all()
 
 def get_project(db: Session, project_id: int):
 
@@ -174,13 +173,18 @@ def create_milestone(db: Session, milestone: schemas.MilestoneCreate):
     return db_milestone
 
 
-def get_milestones(db: Session):
 
-    return db.query(models.ProjectMilestone).all()
 
+
+def get_milestones(db: Session, skip: int = 0, limit: int = 20):
+    return (
+        db.query(models.ProjectMilestone)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def get_milestone(db: Session, milestone_id: int):
-
     return (
         db.query(models.ProjectMilestone)
         .filter(models.ProjectMilestone.id == milestone_id)
@@ -245,11 +249,17 @@ def create_resource(db: Session, resource: schemas.ResourceCreate):
 
     return db_resource
 
-
-def get_resources(db: Session):
-
-    return db.query(models.Resource).all()
-
+def get_resources(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Resource)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def get_resource(db: Session, resource_id: int):
 
@@ -317,10 +327,17 @@ def create_inventory(db: Session, inventory: schemas.InventoryCreate):
 
     return db_inventory
 
-
-def get_inventory(db: Session):
-
-    return db.query(models.Inventory).all()
+def get_inventory(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Inventory)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_inventory_item(db: Session, inventory_id: int):
@@ -391,9 +408,24 @@ def create_worker(db: Session, worker: schemas.WorkerCreate):
     return db_worker
 
 
-def get_workers(db: Session):
+def get_workers(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Worker)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-    return db.query(models.Worker).all()
+def search_workers(db: Session, name: str):
+    return (
+        db.query(models.Worker)
+        .filter(models.Worker.name.ilike(f"%{name}%"))
+        .all()
+    )  
 
 
 def get_worker(db: Session, worker_id: int):
@@ -462,10 +494,17 @@ def create_attendance(db: Session, attendance: schemas.AttendanceCreate):
 
     return db_attendance
 
-
-def get_attendance(db: Session):
-
-    return db.query(models.Attendance).all()
+def get_attendance(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Attendance)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_attendance_record(db: Session, attendance_id: int):
@@ -536,10 +575,17 @@ def create_procurement(db: Session, procurement: schemas.ProcurementCreate):
 
     return db_procurement
 
-
-def get_procurements(db: Session):
-
-    return db.query(models.Procurement).all()
+def get_procurements(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Procurement)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_procurement(db: Session, procurement_id: int):
@@ -607,9 +653,17 @@ def create_notification(db: Session, notification: schemas.NotificationCreate):
     return db_notification
 
 
-def get_notifications(db: Session):
-
-    return db.query(models.Notification).all()
+def get_notifications(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Notification)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_notification(db: Session, notification_id: int):
@@ -693,9 +747,17 @@ def create_report(db: Session, report: schemas.ReportCreate):
     return db_report
 
 
-def get_reports(db: Session):
-
-    return db.query(models.Report).all()
+def get_reports(
+    db: Session,
+    skip: int = 0,
+    limit: int = 20
+):
+    return (
+        db.query(models.Report)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_report(db: Session, report_id: int):
@@ -742,3 +804,326 @@ def delete_report(db: Session, report_id: int):
     return db_report
 
 
+def search_project(db, name):
+    return db.query(models.Project).filter(
+        models.Project.project_name.ilike(f"%{name}%")
+    ).all()
+
+
+
+
+
+
+
+def low_stock(db):
+    return db.query(models.Inventory).filter(
+        models.Inventory.quantity < 10
+    ).all()
+
+
+
+
+
+def search_inventory(
+    db: Session,
+    material: str
+):
+    return (
+        db.query(models.Inventory)
+        .filter(
+            models.Inventory.material_name.ilike(f"%{material}%")
+        )
+        .all()
+    )
+
+
+def pending_procurements(db):
+    return db.query(models.Procurement).filter(
+        models.Procurement.status == "Pending"
+    ).all()
+
+
+def allocate_resource(db: Session, resource_id: int):
+
+    resource = db.query(models.Resource).filter(
+        models.Resource.id == resource_id
+    ).first()
+
+    resource.status = "Allocated"
+
+    db.commit()
+
+    return resource
+
+
+def available_resources(db: Session):
+
+    return db.query(models.Resource).filter(
+        models.Resource.status == "Available"
+    ).all()
+
+
+from datetime import date
+
+def today_attendance(db):
+    return db.query(models.Attendance).filter(
+        models.Attendance.date == date.today()
+    ).all()
+
+
+
+
+
+def admin_dashboard(db):
+
+    return {
+
+        "users": db.query(models.User).count(),
+
+        "projects": db.query(models.Project).count(),
+
+        "running_projects": running_projects(db),
+
+        "completed_projects": completed_projects(db),
+
+        "workers": db.query(models.Worker).count(),
+
+        "inventory": db.query(models.Inventory).count(),
+
+        "low_stock": low_stock_count(db),
+
+        "attendance_today": attendance_today_count(db),
+
+        "pending_procurements": db.query(models.Procurement)
+            .filter(models.Procurement.status=="Pending")
+            .count()
+    }
+
+
+
+
+
+def search_milestones(db: Session, name: str):
+    return (
+        db.query(models.ProjectMilestone)
+        .filter(
+            models.ProjectMilestone.milestone_name.ilike(f"%{name}%")
+        )
+        .all()
+    )
+
+
+def search_resources(
+    db: Session,
+    name: str
+):
+    return (
+        db.query(models.Resource)
+        .filter(
+            models.Resource.resource_name.ilike(f"%{name}%")
+        )
+        .all()
+    )
+
+
+def search_procurements(
+    db: Session,
+    material: str
+):
+    return (
+        db.query(models.Procurement)
+        .filter(
+            models.Procurement.material_name.ilike(f"%{material}%")
+        )
+        .all()
+    )
+
+
+def search_notifications(
+    db: Session,
+    title: str
+):
+    return (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.title.ilike(f"%{title}%")
+        )
+        .all()
+    )
+
+def search_reports(
+    db: Session,
+    report_type: str
+):
+    return (
+        db.query(models.Report)
+        .filter(
+            models.Report.report_type.ilike(f"%{report_type}%")
+        )
+        .all()
+    )
+
+def running_projects(db):
+    return db.query(models.Project).filter(
+        models.Project.status=="Running"
+    ).count()
+
+
+def completed_projects(db):
+    return db.query(models.Project).filter(
+        models.Project.status=="Completed"
+    ).count()
+
+
+
+def low_stock_count(db):
+    return db.query(models.Inventory).filter(
+        models.Inventory.quantity <
+        models.Inventory.minimum_stock
+    ).count()
+
+from datetime import date
+
+def attendance_today_count(db):
+    return db.query(models.Attendance).filter(
+        models.Attendance.attendance_date==date.today()
+    ).count()
+
+
+def low_stock(db: Session):
+
+    return db.query(models.Inventory).filter(
+
+        models.Inventory.quantity < 20
+
+    ).all()
+
+
+def search_resource(db: Session, keyword: str):
+
+    return db.query(models.Resource).filter(
+
+        models.Resource.resource_name.ilike(f"%{keyword}%")
+
+    ).all()
+
+
+
+def update_stock(
+    db: Session,
+    inventory_id: int,
+    quantity: int
+):
+
+    item = db.query(models.Inventory).filter(
+
+        models.Inventory.id == inventory_id
+
+    ).first()
+
+    item.quantity += quantity
+
+    db.commit()
+
+    db.refresh(item)
+
+    return item
+
+
+
+def assign_worker(
+    db: Session,
+    worker_id: int,
+    project_id: int
+):
+
+    worker = db.query(models.Worker).filter(
+
+        models.Worker.id == worker_id
+
+    ).first()
+
+    worker.project_id = project_id
+
+    db.commit()
+
+    db.refresh(worker)
+
+    return worker
+
+
+
+
+def worker_history(
+    db: Session,
+    worker_id: int
+):
+
+    return db.query(models.Attendance).filter(
+
+        models.Attendance.worker_id == worker_id
+
+    ).all()
+
+
+
+
+def mark_attendance(
+    db: Session,
+    attendance
+):
+
+    db_att = models.Attendance(
+
+        **attendance.dict()
+
+    )
+
+    db.add(db_att)
+
+    db.commit()
+
+    db.refresh(db_att)
+
+    return db_att
+
+
+
+
+
+
+from sqlalchemy import extract
+
+def monthly_report(
+    db: Session,
+    month: int,
+    year: int
+):
+
+    return db.query(models.Attendance).filter(
+
+        extract("month", models.Attendance.date) == month,
+
+        extract("year", models.Attendance.date) == year
+
+    ).all()
+
+
+from sqlalchemy import func
+
+def present_count(db: Session):
+
+    return db.query(func.count(models.Attendance.id)).filter(
+
+        models.Attendance.status == "Present"
+
+    ).scalar()
+
+
+def absent_count(db: Session):
+
+    return db.query(func.count(models.Attendance.id)).filter(
+
+        models.Attendance.status == "Absent"
+
+    ).scalar()

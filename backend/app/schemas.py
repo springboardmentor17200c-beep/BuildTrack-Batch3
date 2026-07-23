@@ -1,6 +1,16 @@
-from pydantic import BaseModel, EmailStr
+
+
+from pydantic import BaseModel, EmailStr, constr
 from datetime import date
 from typing import Optional
+from pydantic import Field
+
+from enum import Enum
+
+class ProjectStatus(str, Enum):
+    Pending="Pending"
+    Running="Running"
+    Completed="Completed"
 
 
 # ---------------- USERS ----------------
@@ -10,7 +20,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     role: str
-    phone: Optional[str] = None
+    phone: Optional[constr(pattern=r'^\d{10}$')] = None
 
 
 class UserLogin(BaseModel):
@@ -24,11 +34,24 @@ class ProjectCreate(BaseModel):
     project_name: str
     description: Optional[str] = None
     location: str
-    budget: float
+    budget: float = Field(gt=0)
     start_date: date
     end_date: date
-    status: str
+    status: ProjectStatus
     manager_id: int
+
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    location: Optional[str] = None
+    budget: Optional[float] = None
+    status: Optional[str] = None
+
+
+class ProjectResponse(ProjectBase):
+    id: int
+
+    class Config:
+        from_attributes = True
 
 
 # ---------------- MILESTONES ----------------
@@ -47,7 +70,7 @@ class ResourceCreate(BaseModel):
     project_id: int
     resource_name: str
     category: str
-    quantity: int
+    quantity: int = Field(gt=0)
     status: str
 
 
@@ -56,10 +79,10 @@ class ResourceCreate(BaseModel):
 class InventoryCreate(BaseModel):
     project_id: int
     material_name: str
-    quantity: int
     unit: str
-    minimum_stock: int
     supplier: str
+    quantity: int = Field(gt=0)
+    minimum_stock: int = Field(ge=0)
 
 
 # ---------------- WORKERS ----------------
@@ -67,9 +90,9 @@ class InventoryCreate(BaseModel):
 class WorkerCreate(BaseModel):
     project_id: int
     name: str
-    phone: str
+    phone: Optional[constr(pattern=r'^\d{10}$')] = None
     designation: str
-    salary: float
+    salary: float = Field(gt=0)
 
 
 # ---------------- ATTENDANCE ----------------
@@ -78,7 +101,7 @@ class AttendanceCreate(BaseModel):
     worker_id: int
     project_id: int
     attendance_date: date
-    status: str
+    status: ProjectStatus
     check_in: str
     check_out: str
 
@@ -89,10 +112,11 @@ class ProcurementCreate(BaseModel):
     project_id: int
     material_name: str
     supplier: str
-    quantity: int
-    total_cost: float
-    purchase_date: date
+    quantity: int = Field(gt=0)
+    total_cost: float = Field(gt=0)
     status: str
+    purchase_date: date
+
 
 
 # ---------------- NOTIFICATIONS ----------------

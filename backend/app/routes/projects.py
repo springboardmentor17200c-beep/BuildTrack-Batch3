@@ -1,67 +1,43 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app import crud, schemas
-
-router = APIRouter(
-    prefix="/projects",
-    tags=["Projects"]
-)
-
-@router.post("/")
-def create_project(project: schemas.ProjectCreate,
-                   db: Session = Depends(get_db)):
-    return crud.create_project(db, project)
-
-@router.get("/")
-def get_projects(db: Session = Depends(get_db)):
-    return crud.get_projects(db)
-
-
-
-
-
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.database import get_db
 from app import crud, schemas
+from app.dependencies import require_role
+from app.auth import get_current_user
 
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"]
 )
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 # Create Project
-@router.post("/", response_model=schemas.ProjectOut)
+@router.post("/")
 def create_project(
     project: schemas.ProjectCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
     return crud.create_project(db, project)
 
 
-# Get All Projects
-@router.get("/", response_model=list[schemas.ProjectOut])
-def get_projects(db: Session = Depends(get_db)):
-    return crud.get_projects(db)
+# Get All Projects (Pagination)
+@router.get("/")
+def get_projects(
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return crud.get_projects(db, skip, limit)
 
 
 # Get Project by ID
-@router.get("/{project_id}", response_model=schemas.ProjectOut)
+@router.get("/{project_id}")
 def get_project(
     project_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     project = crud.get_project(db, project_id)
 
@@ -75,11 +51,12 @@ def get_project(
 
 
 # Update Project
-@router.put("/{project_id}", response_model=schemas.ProjectOut)
+@router.put("/{project_id}")
 def update_project(
     project_id: int,
     project: schemas.ProjectCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
     updated = crud.update_project(db, project_id, project)
 
@@ -96,7 +73,8 @@ def update_project(
 @router.delete("/{project_id}")
 def delete_project(
     project_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin"))
 ):
     deleted = crud.delete_project(db, project_id)
 
@@ -107,3 +85,13 @@ def delete_project(
         )
 
     return {"message": "Project deleted successfully"}
+
+
+# Search Projects
+@router.get("/search")
+def search_project(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return crud.search_project(db, name)
