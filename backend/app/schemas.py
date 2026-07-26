@@ -47,7 +47,7 @@ class ProjectUpdate(BaseModel):
     status: Optional[str] = None
 
 
-class ProjectResponse(ProjectBase):
+class ProjectResponse(ProjectCreate):
     id: int
 
     class Config:
@@ -62,7 +62,8 @@ class MilestoneCreate(BaseModel):
     due_date: date
     completed_date: Optional[date] = None
     status: str
-
+class MilestoneUpdate(MilestoneCreate):
+    pass
 
 # ---------------- RESOURCES ----------------
 
@@ -84,6 +85,8 @@ class InventoryCreate(BaseModel):
     quantity: int = Field(gt=0)
     minimum_stock: int = Field(ge=0)
 
+class InventoryUpdate(InventoryCreate):
+    pass
 
 # ---------------- WORKERS ----------------
 
@@ -94,6 +97,8 @@ class WorkerCreate(BaseModel):
     designation: str
     salary: float = Field(gt=0)
 
+class WorkerUpdate(WorkerCreate):
+    pass
 
 # ---------------- ATTENDANCE ----------------
 
@@ -105,7 +110,8 @@ class AttendanceCreate(BaseModel):
     check_in: str
     check_out: str
 
-
+class AttendanceUpdate(AttendanceCreate):
+    pass
 # ---------------- PROCUREMENT ----------------
 
 class ProcurementCreate(BaseModel):
@@ -117,7 +123,8 @@ class ProcurementCreate(BaseModel):
     status: str
     purchase_date: date
 
-
+class ProcurementUpdate(ProcurementCreate):
+    pass
 
 # ---------------- NOTIFICATIONS ----------------
 
@@ -126,6 +133,8 @@ class NotificationCreate(BaseModel):
     title: str
     message: str
 
+class NotificationUpdate(NotificationCreate):
+    pass
 
 # ---------------- REPORTS ----------------
 
@@ -134,3 +143,6 @@ class ReportCreate(BaseModel):
     generated_by: int
     report_type: str
     report_url: str
+    
+class ReportUpdate(ReportCreate):
+    pass

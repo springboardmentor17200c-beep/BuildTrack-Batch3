@@ -74,11 +74,16 @@ def delete_user(db: Session, user_id: int):
 
     return db_user
 
-
-
 # ======================================================
 # PROJECT CRUD
 # ======================================================
+
+def search_project(db: Session, name: str):
+    return (
+        db.query(models.Project)
+        .filter(models.Project.project_name.ilike(f"%{name}%"))
+        .all()
+    )
 
 def create_project(db: Session, project: schemas.ProjectCreate):
 

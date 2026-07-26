@@ -193,7 +193,6 @@ class Procurement(Base):
     __tablename__ = "procurements"
     __table_args__ = (
     CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
-    CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
 )
 
     id = Column(Integer, primary_key=True)
