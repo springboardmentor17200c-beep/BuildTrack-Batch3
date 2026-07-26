@@ -309,23 +309,21 @@ export class LoginComponent implements OnInit {
 
     this.isLoading = true;
 
-    const { email, password, role } = this.loginForm.value;
+    const { email, password } = this.loginForm.value;
     
-    // Simulate slight loading latency
-    setTimeout(() => {
-      this.authService.login(email, password, role).subscribe({
-        next: () => {
+    this.authService.login(email, password).subscribe({
+      next: response => {
           this.isLoading = false;
-          this.toastService.showSuccess(`Welcome back! Logged in as ${role}.`);
+          const role = response.user.role;
+          this.toastService.showSuccess(`Welcome back, ${response.user.name}.`);
           this.redirectToDashboard(role);
-        },
-        error: (err: any) => {
+      },
+      error: (err: any) => {
           this.isLoading = false;
-          this.error = err.message || 'Login failed. Please check credentials.';
+          this.error = err.error?.detail || 'Login failed. Please check credentials.';
           this.toastService.showError(this.error);
-        }
-      });
-    }, 1000);
+      }
+    });
   }
 
   onSocialLogin(provider: 'Google' | 'Facebook'): void {
@@ -341,10 +339,9 @@ export class LoginComponent implements OnInit {
       this.isFacebookLoading = false;
       
       const email = `${provider.toLowerCase()}@buildtrack.com`;
-      const role = 'Project Manager'; // default PM dashboard access for social logins
-      
-      this.authService.login(email, 'password123', role).subscribe({
-        next: () => {
+      this.authService.login(email, 'password123').subscribe({
+        next: response => {
+          const role = response.user.role;
           this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
           this.redirectToDashboard(role);
         },

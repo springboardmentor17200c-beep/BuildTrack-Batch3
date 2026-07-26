@@ -16,6 +16,7 @@ export interface Project {
   spent: string;
   startDate: string;
   endDate: string;
+  location?: string;
   status: 'On Track' | 'Delayed' | 'Critical' | 'Completed';
   milestones: Milestone[];
 }

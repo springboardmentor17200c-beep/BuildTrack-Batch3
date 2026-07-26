@@ -166,9 +166,7 @@ export class NavbarComponent implements OnInit {
  
   switchRole(role: string): void {
     if (this.currentUser) {
-      this.authService.login(this.currentUser.email, "password123", role).subscribe(updatedUser => {
-        this.redirectToDashboard(role);
-      });
+      this.redirectToDashboard(this.currentUser.role);
     }
   }
  

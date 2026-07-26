@@ -1,163 +1,184 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, BehaviorSubject } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
+import { forkJoin, map, Observable, switchMap, throwError } from 'rxjs';
 import { Project, Milestone } from '../interfaces/project.interface';
+import { AuthService } from './auth.service';
 
-@Injectable({
-  providedIn: 'root'
-})
+interface ApiProject {
+  id: number;
+  project_name: string;
+  description?: string | null;
+  location: string;
+  budget: number;
+  start_date: string;
+  end_date: string;
+  status: 'Pending' | 'Running' | 'Completed';
+  manager_id: number;
+}
+
+interface ApiMilestone {
+  id: number;
+  project_id: number;
+  milestone_name: string;
+  due_date: string;
+  completed_date?: string | null;
+  status: string;
+}
+
+interface ProjectFormValue {
+  name: string;
+  category: Project['category'];
+  budget: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+}
+
+@Injectable({ providedIn: 'root' })
 export class ProjectService {
-  private projects: Project[] = [
-    {
-      id: 1,
-      name: 'Metropolitan Commercial Plaza',
-      category: 'Commercial',
-      progress: 85,
-      budget: '$1.5M',
-      spent: '$1.3M',
-      startDate: '2026-01-10',
-      endDate: '2026-09-15',
-      status: 'On Track',
-      milestones: [
-        { id: 101, title: 'Architectural Planning & Permits', dueDate: '2026-05-15', status: 'Completed', description: 'Permits acquired from municipal city council, zoning plans approved, blueprint draft finalized.', completionDate: '24 Apr 2026' },
-        { id: 102, title: 'Excavation & Foundation Pouring', dueDate: '2026-06-10', status: 'Completed', description: 'Excavation of core basement complete. Concrete slab foundation poured and settled.', completionDate: '18 May 2026' },
-        { id: 103, title: 'Steel Framing Pillars (Level 2)', dueDate: '2026-08-01', status: 'In Progress', description: 'Setting up structural scaffolding framework for core elevator shafts.' },
-        { id: 104, title: 'Wall Partition Masonry', dueDate: '2026-09-15', status: 'Pending', description: 'Layering bricks for external boundary layouts.' }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Riverside Residential Township',
-      category: 'Residential',
-      progress: 48,
-      budget: '$2.0M',
-      spent: '$1.2M',
-      startDate: '2026-02-15',
-      endDate: '2026-12-20',
-      status: 'Delayed',
-      milestones: [
-        { id: 201, title: 'Land Clearing & Levelling', dueDate: '2026-03-10', status: 'Completed', description: 'Remove existing vegetation and level slope contours.', completionDate: '08 Mar 2026' },
-        { id: 202, title: 'Sewerage & Main Drainage Conduit', dueDate: '2026-05-01', status: 'Completed', description: 'Lay down storm drain pipes and connect to municipal line.', completionDate: '04 May 2026' },
-        { id: 203, title: 'Substructure Footing Pours', dueDate: '2026-07-15', status: 'In Progress', description: 'Drill foundation piers and pour concrete footings.' },
-        { id: 204, title: 'Level 1 Masonry Works', dueDate: '2026-09-30', status: 'Pending', description: 'Brick and mortar placements for load bearing residential frames.' }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Industrial Cold Storage Unit',
-      category: 'Industrial',
-      progress: 92,
-      budget: '$800k',
-      spent: '$780k',
-      startDate: '2026-03-01',
-      endDate: '2026-08-30',
-      status: 'On Track',
-      milestones: [
-        { id: 301, title: 'Excavation & Core Pour', dueDate: '2026-04-15', status: 'Completed', description: 'Pour floor slabs designed for heavy machinery load weight.', completionDate: '12 Apr 2026' },
-        { id: 302, title: 'Steel Columns & Roofing Trusses', dueDate: '2026-06-01', status: 'Completed', description: 'Assemble structural columns and install overhead crane girders.', completionDate: '28 May 2026' },
-        { id: 303, title: 'Insulated Wall Sandwich Panels', dueDate: '2026-07-20', status: 'In Progress', description: 'Mount thermal panel cladding for climate insulation seal.' }
-      ]
-    },
-    {
-      id: 4,
-      name: 'State Highway Bypass Route',
-      category: 'Infrastructure',
-      progress: 24,
-      budget: '$3.5M',
-      spent: '$900k',
-      startDate: '2026-04-10',
-      endDate: '2027-06-30',
-      status: 'Critical',
-      milestones: [
-        { id: 401, title: 'Clearing Right of Way', dueDate: '2026-06-01', status: 'Completed', description: 'Remove obstacles, topsoil scraping across 5km bypass line.', completionDate: '18 May 2026' },
-        { id: 402, title: 'Culvert & Pipe Placements', dueDate: '2026-09-15', status: 'In Progress', description: 'Install concrete culverts for regional stream flows.' }
-      ]
-    },
-    {
-      id: 5,
-      name: 'Metro Line Bridge Foundations',
-      category: 'Government Projects',
-      progress: 60,
-      budget: '$5.0M',
-      spent: '$3.0M',
-      startDate: '2025-11-01',
-      endDate: '2026-11-30',
-      status: 'On Track',
-      milestones: [
-        { id: 501, title: 'Geotechnical Soil Boring Tests', dueDate: '2025-12-01', status: 'Completed', description: 'Drill core logs and test bearing capacities.', completionDate: '26 Nov 2025' },
-        { id: 502, title: 'Piling Works & Cofferdam Setup', dueDate: '2026-03-15', status: 'Completed', description: 'Drive sheet piles for river bed piers.', completionDate: '10 Mar 2026' },
-        { id: 503, title: 'Pier Cap Pouring', dueDate: '2026-08-30', status: 'In Progress', description: 'Construct forms and pour pier caps to receive precast girders.' }
-      ]
-    }
-  ];
+  private readonly apiUrl = 'http://127.0.0.1:8000';
 
-  private projectsSubject = new BehaviorSubject<Project[]>(this.projects);
-  projects$ = this.projectsSubject.asObservable();
-
-  constructor() {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
 
   getProjects(): Observable<Project[]> {
-    return this.projects$.pipe(delay(500));
-  }
-
-  getProjectById(id: number): Observable<Project | undefined> {
-    return this.projects$.pipe(
-      delay(400),
-      map(list => list.find(p => p.id === id))
+    return forkJoin({
+      projects: this.http.get<ApiProject[]>(`${this.apiUrl}/projects/?limit=1000`),
+      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`)
+    }).pipe(
+      map(({ projects, milestones }) => projects.map(project =>
+        this.toProject(project, milestones.filter(milestone => milestone.project_id === project.id))
+      ))
     );
   }
 
-  createProject(project: Omit<Project, 'id' | 'progress' | 'spent' | 'status' | 'milestones'>): Observable<Project> {
-    const newProject: Project = {
-      ...project,
-      id: Math.max(...this.projects.map(p => p.id), 0) + 1,
-      progress: 0,
-      spent: '$0k',
-      status: 'On Track',
-      milestones: [
-        { id: Math.random(), title: 'Initial Project Planning', dueDate: project.startDate, status: 'Pending', description: 'System automatically generated planning phase.' }
-      ]
-    };
-    this.projects.unshift(newProject);
-    this.projectsSubject.next([...this.projects]);
-    return of(newProject).pipe(delay(600));
+  getProjectById(id: number): Observable<Project | undefined> {
+    return forkJoin({
+      project: this.http.get<ApiProject>(`${this.apiUrl}/projects/${id}`),
+      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`)
+    }).pipe(
+      map(({ project, milestones }) => this.toProject(
+        project,
+        milestones.filter(milestone => milestone.project_id === id)
+      ))
+    );
   }
 
-  updateProject(project: Project): Observable<Project> {
-    const index = this.projects.findIndex(p => p.id === project.id);
-    if (index !== -1) {
-      this.projects[index] = { ...project };
-      this.projectsSubject.next([...this.projects]);
+  createProject(form: ProjectFormValue): Observable<Project> {
+    const managerId = this.authService.currentUserValue?.id;
+    if (!managerId) {
+      return throwError(() => new Error('Please sign in again before creating a project.'));
     }
-    return of(project).pipe(delay(600));
+
+    return this.http.post<ApiProject>(`${this.apiUrl}/projects/`, this.toApiPayload(form, managerId, 'On Track')).pipe(
+      map(project => this.toProject(project, []))
+    );
+  }
+
+  updateProject(project: Project, form: ProjectFormValue): Observable<Project> {
+    const managerId = this.authService.currentUserValue?.id;
+    if (!managerId) {
+      return throwError(() => new Error('Please sign in again before updating a project.'));
+    }
+
+    return this.http.put<ApiProject>(
+      `${this.apiUrl}/projects/${project.id}`,
+      this.toApiPayload(form, managerId, project.status)
+    ).pipe(map(updated => this.toProject(updated, project.milestones.map(milestone => this.toApiMilestone(milestone, project.id)))));
   }
 
   deleteProject(id: number): Observable<boolean> {
-    const initialLength = this.projects.length;
-    this.projects = this.projects.filter(p => p.id !== id);
-    this.projectsSubject.next([...this.projects]);
-    return of(this.projects.length < initialLength).pipe(delay(500));
+    return this.http.delete(`${this.apiUrl}/projects/${id}`).pipe(map(() => true));
   }
 
-  updateMilestone(projectId: number, milestoneId: number, status: 'Completed' | 'In Progress' | 'Pending'): Observable<Project | undefined> {
-    const project = this.projects.find(p => p.id === projectId);
-    if (project) {
-      const ms = project.milestones.find(m => m.id === milestoneId);
-      if (ms) {
-        ms.status = status;
-        if (status === 'Completed') {
-          ms.completionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        } else {
-          ms.completionDate = undefined;
-        }
-        
-        // Recalculate progress based on completed milestones
-        const completedCount = project.milestones.filter(m => m.status === 'Completed').length;
-        project.progress = Math.round((completedCount / project.milestones.length) * 100);
-        
-        this.projectsSubject.next([...this.projects]);
-      }
-    }
-    return of(project).pipe(delay(400));
+  updateMilestone(projectId: number, milestoneId: number, status: Milestone['status']): Observable<Project | undefined> {
+    return this.http.get<ApiMilestone>(`${this.apiUrl}/milestones/${milestoneId}`).pipe(
+      switchMap(milestone => this.http.put<ApiMilestone>(`${this.apiUrl}/milestones/${milestoneId}`, {
+        ...milestone,
+        status,
+        completed_date: status === 'Completed' ? new Date().toISOString().slice(0, 10) : null
+      })),
+      switchMap(() => this.getProjectById(projectId))
+    );
+  }
+
+  private toApiPayload(form: ProjectFormValue, managerId: number, status: Project['status']) {
+    return {
+      project_name: form.name,
+      description: form.category,
+      location: form.location,
+      budget: this.parseBudget(form.budget),
+      start_date: form.startDate,
+      end_date: form.endDate,
+      status: this.toApiStatus(status),
+      manager_id: managerId
+    };
+  }
+
+  private toProject(project: ApiProject, milestones: ApiMilestone[]): Project {
+    const uiMilestones = milestones.map(milestone => this.toMilestone(milestone));
+    const completed = uiMilestones.filter(milestone => milestone.status === 'Completed').length;
+
+    return {
+      id: project.id,
+      name: project.project_name,
+      category: this.toCategory(project.description),
+      progress: uiMilestones.length ? Math.round((completed / uiMilestones.length) * 100) : 0,
+      budget: `$${project.budget.toLocaleString()}`,
+      spent: '$0',
+      startDate: project.start_date,
+      endDate: project.end_date,
+      location: project.location,
+      status: this.toUiStatus(project.status),
+      milestones: uiMilestones
+    };
+  }
+
+  private toMilestone(milestone: ApiMilestone): Milestone {
+    return {
+      id: milestone.id,
+      title: milestone.milestone_name,
+      dueDate: milestone.due_date,
+      status: milestone.status as Milestone['status'],
+      description: '',
+      completionDate: milestone.completed_date || undefined
+    };
+  }
+
+  private toApiMilestone(milestone: Milestone, projectId: number): ApiMilestone {
+    return {
+      id: milestone.id,
+      project_id: projectId,
+      milestone_name: milestone.title,
+      due_date: milestone.dueDate,
+      completed_date: milestone.completionDate,
+      status: milestone.status
+    };
+  }
+
+  private toCategory(value?: string | null): Project['category'] {
+    const categories: Project['category'][] = ['Residential', 'Commercial', 'Industrial', 'Infrastructure', 'Government Projects'];
+    return categories.includes(value as Project['category']) ? value as Project['category'] : 'Residential';
+  }
+
+  private toUiStatus(status: ApiProject['status']): Project['status'] {
+    if (status === 'Completed') return 'Completed';
+    if (status === 'Running') return 'On Track';
+    return 'Delayed';
+  }
+
+  private toApiStatus(status: Project['status']): ApiProject['status'] {
+    if (status === 'Completed') return 'Completed';
+    if (status === 'On Track') return 'Running';
+    return 'Pending';
+  }
+
+  private parseBudget(value: string): number {
+    const cleaned = value.replace(/[$,\s]/g, '').toUpperCase();
+    const multiplier = cleaned.endsWith('M') ? 1_000_000 : cleaned.endsWith('K') ? 1_000 : 1;
+    const amount = Number.parseFloat(cleaned.replace(/[MK]$/, ''));
+    return Number.isFinite(amount) ? amount * multiplier : 0;
   }
 }

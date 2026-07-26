@@ -318,11 +318,7 @@ export class ProjectListComponent implements OnInit {
     this.isSaving = true;
     if (this.selectedProject) {
       // Edit mode
-      const updated: Project = {
-        ...this.selectedProject,
-        ...formValue
-      };
-      this.projectService.updateProject(updated).subscribe({
+      this.projectService.updateProject(this.selectedProject, formValue).subscribe({
         next: () => {
           this.isSaving = false;
           this.toastService.showSuccess('Project details updated successfully.');

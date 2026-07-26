@@ -269,13 +269,13 @@ export class RegisterComponent implements OnInit {
       return;
     }
 
-    const { fullName, email, role } = this.registerForm.value;
-    this.authService.register(fullName, email, role).subscribe({
+    const { fullName, email, password, role } = this.registerForm.value;
+    this.authService.register(fullName, email, password, role).subscribe({
       next: () => {
-        this.redirectToDashboard(role);
+        this.router.navigate(['/login']);
       },
       error: err => {
-        this.error = err.message || 'Registration failed.';
+        this.error = err.error?.detail || 'Registration failed.';
       }
     });
   }
