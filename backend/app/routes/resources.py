@@ -31,6 +31,24 @@ def get_resources(
     return crud.get_resources(db, skip, limit)
 
 
+# Search Resources
+@router.get("/search")
+def search_resources(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return crud.search_resources(db, name)
+
+
+# Available Resources
+@router.get("/available")
+def available(
+    db: Session = Depends(get_db)
+):
+    return crud.available_resources(db)
+
+
 # Get Resource By ID
 @router.get("/{resource_id}")
 def get_resource(
@@ -86,25 +104,25 @@ def delete_resource(
     return {"message": "Resource deleted successfully"}
 
 
-@router.get("/search")
-def search_resources(
-    name: str,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    return crud.search_resources(db, name)
-
-
 @router.put("/{resource_id}/allocate")
 def allocate(
     resource_id: int,
     db: Session = Depends(get_db)
 ):
-    return crud.allocate_resource(db, resource_id)
+    updated = crud.allocate_resource(db, resource_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    return updated
 
 
-@router.get("/available")
-def available(
+@router.patch("/{resource_id}/status")
+def update_status(
+    resource_id: int,
+    status: str,
     db: Session = Depends(get_db)
 ):
-    return crud.available_resources(db)
+    updated = crud.update_resource_status(db, resource_id, status)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    return updated
+

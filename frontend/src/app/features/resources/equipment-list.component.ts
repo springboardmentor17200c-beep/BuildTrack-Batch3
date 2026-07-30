@@ -66,6 +66,10 @@ import { ToastService } from '../../core/services/toast.service';
                 <mat-icon class="text-warning">build</mat-icon>
                 <span>Set Maintenance</span>
               </button>
+              <button mat-menu-item (click)="deleteEquipment(eq.id)">
+                <mat-icon class="text-danger">delete</mat-icon>
+                <span>Delete Asset</span>
+              </button>
             </mat-menu>
           </div>
         </div>
@@ -127,4 +131,19 @@ export class EquipmentListComponent implements OnInit {
       }
     });
   }
+
+  deleteEquipment(id: number): void {
+    if (confirm('Are you sure you want to delete this resource asset?')) {
+      this.resourceService.deleteResource(id).subscribe({
+        next: () => {
+          this.toastService.showSuccess('Resource deleted successfully.');
+          this.loadEquipment();
+        },
+        error: () => {
+          this.toastService.showError('Failed to delete resource.');
+        }
+      });
+    }
+  }
 }
+

@@ -31,6 +31,14 @@ def get_projects(
 ):
     return crud.get_projects(db, skip, limit)
 
+# Search Projects
+@router.get("/search")
+def search_project(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return crud.search_project(db, name)
 
 # Get Project by ID
 @router.get("/{project_id}")
@@ -85,13 +93,3 @@ def delete_project(
         )
 
     return {"message": "Project deleted successfully"}
-
-
-# Search Projects
-@router.get("/search")
-def search_project(
-    name: str,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    return crud.search_project(db, name)

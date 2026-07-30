@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { ResourceService } from '../../core/services/resource.service';
+import { ProjectService } from '../../core/services/project.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Equipment } from '../../core/interfaces/resource.interface';
 
@@ -39,15 +40,13 @@ import { Equipment } from '../../core/interfaces/resource.interface';
               <label class="bt-form-label">Assign to Site Project</label>
               <select class="form-select bt-form-control" formControlName="project">
                 <option value="" disabled selected>Select project site...</option>
-                <option value="Metropolitan Commercial Plaza">Metropolitan Commercial Plaza</option>
-                <option value="Riverside Residential Township">Riverside Residential Township</option>
-                <option value="Industrial Cold Storage Unit">Industrial Cold Storage Unit</option>
-                <option value="State Highway Bypass Route">State Highway Bypass Route</option>
+                <option *ngFor="let p of projects" [value]="p.name">{{ p.name }}</option>
               </select>
               <div *ngIf="submitted && f['project'].errors" class="text-danger text-xs mt-1">
                 <span>Project selection is required</span>
               </div>
             </div>
+
 
             <!-- Operator Name -->
             <div class="mb-3">
@@ -131,10 +130,17 @@ export class ResourceAllocationComponent implements OnInit {
 
   availableAssets: Equipment[] = [];
   allocations: any[] = [];
+  projects: { id: number; name: string }[] = [
+    { id: 1, name: 'Metropolitan Commercial Plaza' },
+    { id: 2, name: 'Riverside Residential Township' },
+    { id: 3, name: 'Industrial Cold Storage Unit' },
+    { id: 4, name: 'State Highway Bypass Route' }
+  ];
 
   constructor(
     private formBuilder: FormBuilder,
     private resourceService: ResourceService,
+    private projectService: ProjectService,
     private toastService: ToastService
   ) {}
 
@@ -150,13 +156,21 @@ export class ResourceAllocationComponent implements OnInit {
 
   loadData(): void {
     this.resourceService.getEquipment().subscribe(list => {
-      // Show available or assigned assets for allocation
       this.availableAssets = list.filter(e => e.status === 'Available');
     });
     this.resourceService.getAllocations().subscribe(list => {
       this.allocations = list;
     });
+    this.projectService.getProjects().subscribe({
+      next: (projList) => {
+        if (projList && projList.length > 0) {
+          this.projects = projList.map(p => ({ id: p.id, name: p.name }));
+        }
+      },
+      error: () => {}
+    });
   }
+
 
   get f() { return this.deployForm.controls; }
 

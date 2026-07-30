@@ -111,10 +111,12 @@ class Inventory(Base):
     id = Column(Integer, primary_key=True,index=True)
     project_id = Column(Integer, ForeignKey("projects.id"))
     material_name = Column(String(100))
+    category = Column(String(50), default="Cement")
     quantity = Column(Integer, nullable=False)
     unit = Column(String(20))
     minimum_stock = Column(Integer)
     supplier = Column(String(100))
+
 
     project = relationship("Project", back_populates="inventory")    
 
@@ -192,7 +194,6 @@ updated_at = Column(
 class Procurement(Base):
     __tablename__ = "procurements"
     __table_args__ = (
-    CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
     CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
 )
 

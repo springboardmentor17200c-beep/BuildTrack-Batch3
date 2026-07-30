@@ -1,92 +1,213 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable, of, BehaviorSubject } from 'rxjs';
-import { delay } from 'rxjs/operators';
-import { Material, MaterialRequest } from '../interfaces/inventory.interface';
+import { map, catchError, tap } from 'rxjs/operators';
+import { Material, MaterialRequest, MaterialProcurement, MaterialCategory } from '../interfaces/inventory.interface';
+
+export interface ApiInventory {
+  id: number;
+  project_id: number;
+  material_name: string;
+  category?: string;
+  quantity: number;
+  unit: string;
+  minimum_stock: number;
+  supplier: string;
+}
+
+export interface ApiProcurement {
+  id: number;
+  project_id: number;
+  material_name: string;
+  supplier: string;
+  quantity: number;
+  total_cost: number;
+  purchase_date: string;
+  status: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class InventoryService {
-  private materials: Material[] = [
-    { id: 1, name: 'Portland Cement (OPC)', category: 'Raw Materials', quantity: '820', capacityLimit: 1000, currentLevel: 82, unit: 'Bags' },
-    { id: 2, name: 'Structural Steel Rebar (12mm)', category: 'Structural Metal', quantity: '12', capacityLimit: 50, currentLevel: 24, unit: 'Tons' },
-    { id: 3, name: 'Red Facing Clay Bricks', category: 'Masonry Blocks', quantity: '14,000', capacityLimit: 20000, currentLevel: 70, unit: 'Pcs' },
-    { id: 4, name: 'Ready-Mix Concrete (M25 Grade)', category: 'Raw Materials', quantity: '65', capacityLimit: 120, currentLevel: 54, unit: 'm³' },
-    { id: 5, name: 'Washed River Sand', category: 'Aggregates', quantity: '8', capacityLimit: 40, currentLevel: 20, unit: 'Tons' },
-    { id: 6, name: 'PVC Drainage Pipes (4 inch)', category: 'Plumbing', quantity: '180', capacityLimit: 300, currentLevel: 60, unit: 'Pcs' }
-  ];
+  private inventoryUrl = 'http://127.0.0.1:8000/inventory';
+  private procurementUrl = 'http://127.0.0.1:8000/procurements';
 
-  private requests: MaterialRequest[] = [
-    { id: 1, item: 'Steel Rebar (12mm)', qty: '15 Tons', requestedBy: 'Marcus Vance', status: 'Pending', project: 'Metropolitan Commercial Plaza', requiredDate: '2026-07-25' },
-    { id: 2, item: 'Red Facing Clay Bricks', qty: '5,000 Pcs', requestedBy: 'Sarah Jenkins', status: 'Approved', project: 'Riverside Residential Township', requiredDate: '2026-07-20' },
-    { id: 3, item: 'Portland Cement (OPC)', qty: '200 Bags', requestedBy: 'Alex Rivera', status: 'Approved', project: 'Industrial Cold Storage Unit', requiredDate: '2026-07-18' },
-    { id: 4, item: 'Washed River Sand', qty: '10 Tons', requestedBy: 'Marcus Vance', status: 'Pending', project: 'Metropolitan Commercial Plaza', requiredDate: '2026-07-28' }
-  ];
-
-  private materialsSubject = new BehaviorSubject<Material[]>(this.materials);
+  private materialsSubject = new BehaviorSubject<Material[]>([]);
   materials$ = this.materialsSubject.asObservable();
 
-  private requestsSubject = new BehaviorSubject<MaterialRequest[]>(this.requests);
+  private requestsSubject = new BehaviorSubject<MaterialRequest[]>([]);
   requests$ = this.requestsSubject.asObservable();
 
-  constructor() {}
+  private procurementsSubject = new BehaviorSubject<MaterialProcurement[]>([]);
+  procurements$ = this.procurementsSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
 
   getMaterials(): Observable<Material[]> {
-    return this.materials$.pipe(delay(400));
+    return this.http.get<ApiInventory[]>(`${this.inventoryUrl}/?limit=1000`).pipe(
+      map(items => items.map(item => this.toMaterial(item))),
+      tap(materials => this.materialsSubject.next(materials)),
+      catchError(err => {
+        console.error('Error fetching inventory materials from backend API', err);
+        return of(this.materialsSubject.value);
+      })
+    );
   }
 
-  getRequests(): Observable<MaterialRequest[]> {
-    return this.requests$.pipe(delay(450));
-  }
+  createMaterial(material: { name: string; category: MaterialCategory; quantity: string | number; capacityLimit?: number; unit: string; supplier?: string; minimumStock?: number; projectId?: number }): Observable<Material> {
+    const qty = typeof material.quantity === 'number' ? material.quantity : parseInt(String(material.quantity).replace(/,/g, ''), 10) || 0;
+    const minStock = material.minimumStock ?? Math.round(qty * 0.2);
 
-  createMaterial(material: Omit<Material, 'id' | 'currentLevel'>): Observable<Material> {
-    const level = Math.round((parseFloat(material.quantity.replace(/,/g, '')) / material.capacityLimit) * 100);
-    const newMaterial: Material = {
-      ...material,
-      id: Math.max(...this.materials.map(m => m.id), 0) + 1,
-      currentLevel: isNaN(level) ? 50 : Math.min(level, 100)
+    const payload = {
+      project_id: material.projectId || 1,
+      material_name: material.name,
+      category: material.category || 'Cement',
+      quantity: qty > 0 ? qty : 1,
+      unit: material.unit || 'Units',
+      supplier: material.supplier || 'Standard Supplier',
+      minimum_stock: minStock >= 0 ? minStock : 0
     };
-    this.materials.unshift(newMaterial);
-    this.materialsSubject.next([...this.materials]);
-    return of(newMaterial).pipe(delay(500));
+
+    return this.http.post<ApiInventory>(`${this.inventoryUrl}/`, payload).pipe(
+      map(item => this.toMaterial(item)),
+      tap(() => this.getMaterials().subscribe())
+    );
   }
 
   updateMaterial(material: Material): Observable<Material> {
-    const level = Math.round((parseFloat(material.quantity.replace(/,/g, '')) / material.capacityLimit) * 100);
-    material.currentLevel = isNaN(level) ? 50 : Math.min(level, 100);
-    
-    const index = this.materials.findIndex(m => m.id === material.id);
-    if (index !== -1) {
-      this.materials[index] = { ...material };
-      this.materialsSubject.next([...this.materials]);
-    }
-    return of(material).pipe(delay(500));
+    const qty = typeof material.quantity === 'number' ? material.quantity : parseInt(String(material.quantity).replace(/,/g, ''), 10) || 0;
+
+    const payload = {
+      project_id: material.projectId || 1,
+      material_name: material.name,
+      category: material.category || 'Cement',
+      quantity: qty > 0 ? qty : 1,
+      unit: material.unit || 'Units',
+      supplier: material.supplier || 'Standard Supplier',
+      minimum_stock: material.minimumStock ?? 10
+    };
+
+    return this.http.put<ApiInventory>(`${this.inventoryUrl}/${material.id}`, payload).pipe(
+      map(item => this.toMaterial(item)),
+      tap(() => this.getMaterials().subscribe())
+    );
   }
 
   deleteMaterial(id: number): Observable<boolean> {
-    const initialLength = this.materials.length;
-    this.materials = this.materials.filter(m => m.id !== id);
-    this.materialsSubject.next([...this.materials]);
-    return of(this.materials.length < initialLength).pipe(delay(400));
+    return this.http.delete(`${this.inventoryUrl}/${id}`).pipe(
+      map(() => true),
+      tap(() => this.getMaterials().subscribe()),
+      catchError(() => of(false))
+    );
   }
 
-  createRequest(request: Omit<MaterialRequest, 'id' | 'status'>): Observable<MaterialRequest> {
-    const newRequest: MaterialRequest = {
-      ...request,
-      id: Math.max(...this.requests.map(r => r.id), 0) + 1,
-      status: 'Pending'
+  updateStock(id: number, deltaQty: number): Observable<Material | undefined> {
+    return this.http.put<ApiInventory>(`${this.inventoryUrl}/${id}/stock?quantity=${deltaQty}`, {}).pipe(
+      map(item => this.toMaterial(item)),
+      tap(() => this.getMaterials().subscribe()),
+      catchError(err => {
+        console.error('Error updating stock delta', err);
+        return of(undefined);
+      })
+    );
+  }
+
+  getLowStock(): Observable<Material[]> {
+    return this.http.get<ApiInventory[]>(`${this.inventoryUrl}/low-stock`).pipe(
+      map(items => items.map(item => this.toMaterial(item))),
+      catchError(() => of([]))
+    );
+  }
+
+  getRequests(): Observable<MaterialRequest[]> {
+    return this.http.get<ApiProcurement[]>(`${this.procurementUrl}/`).pipe(
+      map(procs => procs.map(p => this.toRequest(p))),
+      tap(requests => this.requestsSubject.next(requests)),
+      catchError(err => {
+        console.error('Error fetching procurement requests from backend API', err);
+        return of(this.requestsSubject.value);
+      })
+    );
+  }
+
+  createRequest(request: { item: string; qty: string; project: string; requestedBy: string; requiredDate?: string; vendor?: string }): Observable<MaterialRequest> {
+    const qtyMatch = request.qty.match(/\d+/);
+    const quantity = qtyMatch ? parseInt(qtyMatch[0], 10) : 100;
+    const today = new Date().toISOString().split('T')[0];
+
+    const payload = {
+      project_id: 1,
+      material_name: request.item,
+      supplier: request.vendor || 'Primary Supplier',
+      quantity,
+      total_cost: quantity * 50,
+      status: 'Pending',
+      purchase_date: request.requiredDate || today
     };
-    this.requests.unshift(newRequest);
-    this.requestsSubject.next([...this.requests]);
-    return of(newRequest).pipe(delay(600));
+
+    return this.http.post<ApiProcurement>(`${this.procurementUrl}/`, payload).pipe(
+      map(p => this.toRequest(p)),
+      tap(() => this.getRequests().subscribe())
+    );
   }
 
   updateRequestStatus(id: number, status: 'Approved' | 'Rejected'): Observable<MaterialRequest | undefined> {
-    const req = this.requests.find(r => r.id === id);
-    if (req) {
-      req.status = status;
-      this.requestsSubject.next([...this.requests]);
-    }
-    return of(req).pipe(delay(400));
+    return this.http.patch<ApiProcurement>(`${this.procurementUrl}/${id}/status?status=${status}`, {}).pipe(
+      map(p => this.toRequest(p)),
+      tap(() => this.getRequests().subscribe()),
+      catchError(err => {
+        console.error('Error patching procurement status', err);
+        return of(undefined);
+      })
+    );
+  }
+
+  getProcurements(): Observable<MaterialProcurement[]> {
+    return this.http.get<ApiProcurement[]>(`${this.procurementUrl}/`).pipe(
+      map(procs => procs.map(p => ({
+        id: p.id,
+        projectId: p.project_id,
+        materialName: p.material_name,
+        supplier: p.supplier,
+        quantity: p.quantity,
+        totalCost: p.total_cost,
+        purchaseDate: p.purchase_date,
+        status: p.status
+      }))),
+      tap(procs => this.procurementsSubject.next(procs)),
+      catchError(() => of([]))
+    );
+  }
+
+  private toMaterial(item: ApiInventory): Material {
+    const capacityLimit = Math.max((item.minimum_stock || 10) * 5, item.quantity, 100);
+    const currentLevel = Math.round((item.quantity / capacityLimit) * 100);
+
+    return {
+      id: item.id,
+      name: item.material_name,
+      category: (item.category || 'Cement') as MaterialCategory,
+      quantity: item.quantity.toLocaleString(),
+      capacityLimit,
+      currentLevel: isNaN(currentLevel) ? 50 : Math.min(currentLevel, 100),
+      unit: item.unit || 'Units',
+      supplier: item.supplier,
+      minimumStock: item.minimum_stock,
+      projectId: item.project_id
+    };
+  }
+
+  private toRequest(p: ApiProcurement): MaterialRequest {
+    return {
+      id: p.id,
+      item: p.material_name,
+      qty: `${p.quantity} Units`,
+      project: `Project #${p.project_id}`,
+      requestedBy: 'Site Manager',
+      status: (p.status === 'Approved' ? 'Approved' : p.status === 'Rejected' ? 'Rejected' : 'Pending') as 'Approved' | 'Pending' | 'Rejected',
+      vendor: p.supplier,
+      requiredDate: p.purchase_date
+    };
   }
 }

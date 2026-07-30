@@ -60,6 +60,10 @@ import { Milestone } from '../../core/interfaces/project.interface';
                   <mat-icon class="text-info">radio_button_unchecked</mat-icon>
                   <span>Set Pending</span>
                 </button>
+                <button mat-menu-item (click)="onDelete(ms.id)">
+                  <mat-icon class="text-danger">delete</mat-icon>
+                  <span>Delete Milestone</span>
+                </button>
               </mat-menu>
             </div>
           </div>
@@ -95,6 +99,7 @@ import { Milestone } from '../../core/interfaces/project.interface';
 export class MilestoneStepperComponent {
   @Input() milestones: Milestone[] = [];
   @Output() statusChange = new EventEmitter<{ milestoneId: number, status: 'Completed' | 'In Progress' | 'Pending' }>();
+  @Output() deleteMilestone = new EventEmitter<number>();
 
   getNodeClass(status: string): string {
     switch (status) {
@@ -115,4 +120,9 @@ export class MilestoneStepperComponent {
   updateStatus(milestoneId: number, status: 'Completed' | 'In Progress' | 'Pending'): void {
     this.statusChange.emit({ milestoneId, status });
   }
+
+  onDelete(milestoneId: number): void {
+    this.deleteMilestone.emit(milestoneId);
+  }
 }
+

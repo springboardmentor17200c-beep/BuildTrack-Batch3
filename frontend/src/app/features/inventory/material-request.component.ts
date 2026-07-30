@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { InventoryService } from '../../core/services/inventory.service';
+import { ProjectService } from '../../core/services/project.service';
 import { ToastService } from '../../core/services/toast.service';
 import { MaterialRequest } from '../../core/interfaces/inventory.interface';
 
@@ -46,10 +47,7 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
               <div class="col-6">
                 <label class="bt-form-label">Target Project Site</label>
                 <select class="form-select bt-form-control" formControlName="project">
-                  <option value="Metropolitan Commercial Plaza">Metropolitan Commercial Plaza</option>
-                  <option value="Riverside Residential Township">Riverside Residential Township</option>
-                  <option value="Industrial Cold Storage Unit">Industrial Cold Storage Unit</option>
-                  <option value="State Highway Bypass Route">State Highway Bypass Route</option>
+                  <option *ngFor="let p of projects" [value]="p.name">{{ p.name }}</option>
                 </select>
               </div>
             </div>
@@ -60,18 +58,18 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
               <input type="text" class="form-control bt-form-control" formControlName="requestedBy" placeholder="e.g. Marcus Vance"
                      [class.is-invalid]="submitted && f['requestedBy'].errors">
               <div *ngIf="submitted && f['requestedBy'].errors" class="invalid-feedback text-xs">
-                <span>Your name is required</span>
+                <span>Requester name is required</span>
               </div>
             </div>
 
-            <!-- Date & Vendor -->
+            <!-- Required Date & Vendor -->
             <div class="row mb-3 g-2">
               <div class="col-6">
                 <label class="bt-form-label">Required Date</label>
                 <input type="date" class="form-control bt-form-control" formControlName="requiredDate"
                        [class.is-invalid]="submitted && f['requiredDate'].errors">
                 <div *ngIf="submitted && f['requiredDate'].errors" class="invalid-feedback text-xs">
-                  <span>Date is required</span>
+                  <span>Required date is mandatory</span>
                 </div>
               </div>
               
@@ -107,6 +105,7 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
                   <th>Site Project</th>
                   <th>Req. Date</th>
                   <th>Status</th>
+                  <th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,9 +127,20 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
                       {{ req.status }}
                     </span>
                   </td>
+                  <td class="text-end">
+                    <div class="d-flex justify-content-end gap-1" *ngIf="req.status === 'Pending'">
+                      <button class="btn btn-xs btn-outline-success py-0 px-2 text-xxs" (click)="updateStatus(req.id, 'Approved')">
+                        Approve
+                      </button>
+                      <button class="btn btn-xs btn-outline-danger py-0 px-2 text-xxs" (click)="updateStatus(req.id, 'Rejected')">
+                        Reject
+                      </button>
+                    </div>
+                    <span *ngIf="req.status !== 'Pending'" class="text-muted text-xxs">—</span>
+                  </td>
                 </tr>
                 <tr *ngIf="requests.length === 0">
-                  <td colspan="5" class="text-center py-4 text-muted">No request logs recorded.</td>
+                  <td colspan="6" class="text-center py-4 text-muted">No request logs recorded.</td>
                 </tr>
               </tbody>
             </table>
@@ -142,6 +152,7 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
   styles: [`
     .text-xs { font-size: 0.8rem; }
     .text-xxs { font-size: 0.72rem; }
+    .btn-xs { font-size: 0.75rem; }
   `]
 })
 export class MaterialRequestComponent implements OnInit {
@@ -149,10 +160,17 @@ export class MaterialRequestComponent implements OnInit {
   submitted = false;
   isLoading = false;
   requests: MaterialRequest[] = [];
+  projects: { id: number; name: string }[] = [
+    { id: 1, name: 'Metropolitan Commercial Plaza' },
+    { id: 2, name: 'Riverside Residential Township' },
+    { id: 3, name: 'Industrial Cold Storage Unit' },
+    { id: 4, name: 'State Highway Bypass Route' }
+  ];
 
   constructor(
     private formBuilder: FormBuilder,
     private inventoryService: InventoryService,
+    private projectService: ProjectService,
     private toastService: ToastService
   ) {}
 
@@ -160,7 +178,7 @@ export class MaterialRequestComponent implements OnInit {
     this.requestForm = this.formBuilder.group({
       item: ['', Validators.required],
       qty: ['', Validators.required],
-      project: ['Metropolitan Commercial Plaza', Validators.required],
+      project: [this.projects[0]?.name || '', Validators.required],
       requestedBy: ['', Validators.required],
       requiredDate: ['', Validators.required],
       vendor: ['']
@@ -171,6 +189,14 @@ export class MaterialRequestComponent implements OnInit {
   loadData(): void {
     this.inventoryService.getRequests().subscribe(list => {
       this.requests = list;
+    });
+    this.projectService.getProjects().subscribe({
+      next: (projList) => {
+        if (projList && projList.length > 0) {
+          this.projects = projList.map(p => ({ id: p.id, name: p.name }));
+        }
+      },
+      error: () => {}
     });
   }
 
@@ -193,7 +219,7 @@ export class MaterialRequestComponent implements OnInit {
         this.requestForm.reset({
           item: '',
           qty: '',
-          project: 'Metropolitan Commercial Plaza',
+          project: this.projects[0]?.name || 'Metropolitan Commercial Plaza',
           requestedBy: '',
           requiredDate: '',
           vendor: ''
@@ -204,6 +230,20 @@ export class MaterialRequestComponent implements OnInit {
       error: () => {
         this.isLoading = false;
         this.toastService.showError('Failed to dispatch requisition order.');
+      }
+    });
+  }
+
+  updateStatus(id: number, status: 'Approved' | 'Rejected'): void {
+    this.inventoryService.updateRequestStatus(id, status).subscribe({
+      next: (updated) => {
+        if (updated) {
+          this.toastService.showSuccess(`Requisition request set to ${status}.`);
+          this.loadData();
+        }
+      },
+      error: () => {
+        this.toastService.showError('Failed to update requisition status.');
       }
     });
   }

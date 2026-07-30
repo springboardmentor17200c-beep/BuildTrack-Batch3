@@ -6,6 +6,8 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { WorkforceService } from '../../core/services/workforce.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Worker } from '../../core/interfaces/workforce.interface';
+import { ProjectService } from '../../core/services/project.service';
+import { Project } from '../../core/interfaces/project.interface';
 import { WorkerProfileModalComponent } from './worker-profile-modal.component';
 
 @Component({
@@ -93,6 +95,18 @@ import { WorkerProfileModalComponent } from './worker-profile-modal.component';
           </div>
 
           <form [formGroup]="workerForm" (ngSubmit)="onSubmitWorker()">
+            <div class="mb-3">
+              <label class="bt-form-label">Project Assignment</label>
+              <select class="form-select bt-form-control" formControlName="projectId"
+                      [class.is-invalid]="submitted && f['projectId'].errors">
+                <option [ngValue]="null" disabled>Select project...</option>
+                <option *ngFor="let project of projects" [ngValue]="project.id">{{ project.name }}</option>
+              </select>
+              <div *ngIf="submitted && f['projectId'].errors" class="invalid-feedback text-xs">
+                <span>Select a project</span>
+              </div>
+            </div>
+
             <!-- Name -->
             <div class="mb-3">
               <label class="bt-form-label">Full Name</label>
@@ -115,34 +129,24 @@ import { WorkerProfileModalComponent } from './worker-profile-modal.component';
               </select>
             </div>
 
-            <!-- Email & Phone -->
+            <!-- Phone & Salary -->
             <div class="row mb-3 g-2">
               <div class="col-6">
-                <label class="bt-form-label">Email Address</label>
-                <input type="email" class="form-control bt-form-control" formControlName="email" placeholder="john@buildtrack.com"
-                       [class.is-invalid]="submitted && f['email'].errors">
-                <div *ngIf="submitted && f['email'].errors" class="invalid-feedback text-xs">
-                  <span>Enter a valid email</span>
+                <label class="bt-form-label">Phone Number</label>
+                <input type="text" class="form-control bt-form-control" formControlName="phone" placeholder="9876543210"
+                       [class.is-invalid]="submitted && f['phone'].errors">
+                <div *ngIf="submitted && f['phone'].errors" class="invalid-feedback text-xs">
+                  <span>Enter a 10-digit phone number</span>
                 </div>
               </div>
               <div class="col-6">
-                <label class="bt-form-label">Phone Number</label>
-                <input type="text" class="form-control bt-form-control" formControlName="phone" placeholder="555-0100"
-                       [class.is-invalid]="submitted && f['phone'].errors">
-                <div *ngIf="submitted && f['phone'].errors" class="invalid-feedback text-xs">
-                  <span>Phone is required</span>
+                <label class="bt-form-label">Monthly Salary</label>
+                <input type="number" min="1" class="form-control bt-form-control" formControlName="salary" placeholder="30000"
+                       [class.is-invalid]="submitted && f['salary'].errors">
+                <div *ngIf="submitted && f['salary'].errors" class="invalid-feedback text-xs">
+                  <span>Enter a salary greater than zero</span>
                 </div>
               </div>
-            </div>
-
-            <!-- Shift -->
-            <div class="mb-3">
-              <label class="bt-form-label">Shift Assignment</label>
-              <select class="form-select bt-form-control" formControlName="shift">
-                <option value="Morning">Morning Shift</option>
-                <option value="Night">Night Shift</option>
-                <option value="Off">Scheduled Off</option>
-              </select>
             </div>
 
             <!-- Actions -->
@@ -196,6 +200,7 @@ import { WorkerProfileModalComponent } from './worker-profile-modal.component';
 export class WorkerListComponent implements OnInit {
   workers: Worker[] = [];
   filteredWorkers: Worker[] = [];
+  projects: Project[] = [];
 
   // Filter criteria
   searchTerm = '';
@@ -211,25 +216,34 @@ export class WorkerListComponent implements OnInit {
 
   constructor(
     private workforceService: WorkforceService,
+    private projectService: ProjectService,
     private toastService: ToastService,
     private formBuilder: FormBuilder
   ) {}
 
   ngOnInit(): void {
     this.workerForm = this.formBuilder.group({
+      projectId: [null, Validators.required],
       name: ['', Validators.required],
       category: ['Skilled Worker', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      phone: ['', Validators.required],
-      shift: ['Morning', Validators.required]
+      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+      salary: [null, [Validators.required, Validators.min(1)]]
     });
     this.loadWorkers();
+    this.loadProjects();
   }
 
   loadWorkers(): void {
     this.workforceService.getWorkers().subscribe(list => {
       this.workers = list;
       this.applyFilters();
+    });
+  }
+
+  loadProjects(): void {
+    this.projectService.getProjects().subscribe({
+      next: projects => this.projects = projects,
+      error: () => this.toastService.showError('Failed to load projects for staff assignment.')
     });
   }
 
@@ -258,8 +272,8 @@ export class WorkerListComponent implements OnInit {
   closeAddModal(): void {
     this.showAddModal = false;
     this.workerForm.reset({
-      category: 'Skilled Worker',
-      shift: 'Morning'
+      projectId: null,
+      category: 'Skilled Worker'
     });
     this.submitted = false;
   }

@@ -71,6 +71,15 @@ import { Project } from '../../core/interfaces/project.interface';
               </div>
             </div>
           </div>
+
+          <div class="mb-3">
+            <label class="bt-form-label">Location</label>
+            <input type="text" class="form-control bt-form-control" formControlName="location" placeholder="e.g. Chennai, Tamil Nadu"
+                   [class.is-invalid]="submitted && f['location'].errors">
+            <div *ngIf="submitted && f['location'].errors" class="invalid-feedback text-xs">
+              <span>Location is required</span>
+            </div>
+          </div>
           
           <!-- Actions -->
           <div class="d-flex justify-content-end gap-2 mt-4 border-top border-light pt-3">
@@ -129,7 +138,8 @@ export class ProjectFormComponent implements OnInit {
       category: [this.project ? this.project.category : 'Residential', Validators.required],
       budget: [this.project ? this.project.budget : '', Validators.required],
       startDate: [this.project ? this.project.startDate : '', Validators.required],
-      endDate: [this.project ? this.project.endDate : '', Validators.required]
+      endDate: [this.project ? this.project.endDate : '', Validators.required],
+      location: [this.project?.location || '', Validators.required]
     });
   }
 

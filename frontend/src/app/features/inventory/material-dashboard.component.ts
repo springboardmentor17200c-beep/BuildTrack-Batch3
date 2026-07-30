@@ -19,13 +19,15 @@ import { AddMaterialDialogComponent } from './add-material-dialog.component';
           <input type="text" class="form-control bt-form-control" placeholder="Search materials..." (input)="onSearch($event)">
           <select class="form-select bt-form-control" style="max-width: 200px;" (change)="onFilterCategory($event)">
             <option value="All">All Categories</option>
-            <option value="Raw Materials">Raw Materials</option>
-            <option value="Structural Metal">Structural Metal</option>
-            <option value="Masonry Blocks">Masonry Blocks</option>
-            <option value="Aggregates">Aggregates</option>
-            <option value="Electrical">Electrical</option>
-            <option value="Plumbing">Plumbing</option>
+            <option value="Cement">Cement</option>
+            <option value="Steel">Steel</option>
+            <option value="Bricks">Bricks</option>
+            <option value="Sand">Sand</option>
+            <option value="Concrete">Concrete</option>
+            <option value="Electrical Materials">Electrical Materials</option>
+            <option value="Plumbing Materials">Plumbing Materials</option>
           </select>
+
         </div>
         <button class="btn btn-bt-primary btn-sm" (click)="openAddModal()">
           <mat-icon style="font-size: 18px; width: 18px; height: 18px;">add_box</mat-icon>

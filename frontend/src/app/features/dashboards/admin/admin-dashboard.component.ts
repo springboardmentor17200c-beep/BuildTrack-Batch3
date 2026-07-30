@@ -5,15 +5,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
-
-interface SystemUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  status: 'Active' | 'Locked' | 'Pending';
-  lastActive: string;
-}
+import { UserService, UserRecord } from '../../../core/services/user.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ToastComponent } from '../../../shared/components/toast/toast.component';
 
 interface SystemLog {
   timestamp: string;
@@ -31,7 +25,8 @@ interface SystemLog {
     MatIconModule,
     MatButtonModule,
     MatDialogModule,
-    MatTabsModule
+    MatTabsModule,
+    ToastComponent
   ],
   template: `
     <div class="container-fluid">
@@ -118,7 +113,7 @@ interface SystemLog {
                     <td>
                       <span class="badge bg-light text-dark text-xs border border-secondary border-opacity-10">{{ user.role }}</span>
                     </td>
-                    <td>{{ user.lastActive }}</td>
+                    <td>{{ user.lastActive || 'Active Now' }}</td>
                     <td>
                       <span class="bt-badge" [class.bt-badge-success]="user.status === 'Active'" 
                             [class.bt-badge-danger]="user.status === 'Locked'" 
@@ -139,6 +134,9 @@ interface SystemLog {
                         </button>
                       </div>
                     </td>
+                  </tr>
+                  <tr *ngIf="filteredUsers.length === 0">
+                    <td colspan="5" class="text-center py-4 text-muted">No users found in platform directory.</td>
                   </tr>
                 </tbody>
               </table>
@@ -162,7 +160,7 @@ interface SystemLog {
         </mat-tab>
       </mat-tab-group>
 
-      <!-- Add User Modal (Simulated Form Overlay) -->
+      <!-- Add User Modal -->
       <div *ngIf="showAddUserModal" class="modal-overlay d-flex align-items-center justify-content-center">
         <div class="modal-card bg-white p-4 rounded shadow-lg" style="width: 450px;">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -192,12 +190,17 @@ interface SystemLog {
             </div>
             <div class="d-flex justify-content-end gap-2 mt-4">
               <button type="button" class="btn btn-bt-outline py-2" (click)="closeAddUserModal()">Cancel</button>
-              <button type="submit" class="btn btn-bt-primary py-2" [disabled]="userForm.invalid">Add User</button>
+              <button type="submit" class="btn btn-bt-primary py-2" [disabled]="userForm.invalid || isSubmitting">
+                <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-1"></span>
+                <span>Add User</span>
+              </button>
             </div>
           </form>
         </div>
       </div>
     </div>
+
+    <app-toast></app-toast>
   `,
   styles: [`
     .icon-circle {
@@ -250,39 +253,32 @@ interface SystemLog {
 })
 export class AdminDashboardComponent implements OnInit {
   statCards = [
-    { title: 'Total Members', value: '42', icon: 'groups', color: '#ff7a00', trend: '+4', trendText: 'this month', trendColor: '#10b981' },
+    { title: 'Total Members', value: '0', icon: 'groups', color: '#ff7a00', trend: '+4', trendText: 'this month', trendColor: '#10b981' },
     { title: 'Active Sites', value: '8', icon: 'location_on', color: '#06b6d4', trend: 'Steady', trendText: 'since last week', trendColor: '#64748b' },
     { title: 'API Success Rate', value: '99.8%', icon: 'api', color: '#10b981', trend: '+0.1%', trendText: 'vs standard', trendColor: '#10b981' },
     { title: 'Security Audits', value: '0 Alerts', icon: 'security', color: '#ef4444', trend: 'Healthy', trendText: 'zero breaches', trendColor: '#10b981' }
   ];
 
-  users: SystemUser[] = [
-    { id: 1, name: 'Sarah Jenkins', email: 'pm@buildtrack.com', role: 'Project Manager', status: 'Active', lastActive: '5 mins ago' },
-    { id: 2, name: 'Alex Rivera', email: 'engineer@buildtrack.com', role: 'Site Engineer', status: 'Active', lastActive: '12 mins ago' },
-    { id: 3, name: 'Marcus Vance', email: 'contractor@buildtrack.com', role: 'Contractor', status: 'Active', lastActive: '1 hr ago' },
-    { id: 4, name: 'BuildCorp Developments', email: 'client@buildtrack.com', role: 'Client', status: 'Active', lastActive: 'Yesterday' },
-    { id: 5, name: 'Tom Huddleston', email: 'tom.h@buildtrack.com', role: 'Site Engineer', status: 'Pending', lastActive: 'Never' },
-    { id: 6, name: 'Rupert Finch', email: 'rupert@contractor.com', role: 'Contractor', status: 'Locked', lastActive: '2 days ago' }
-  ];
-
-  filteredUsers: SystemUser[] = [];
+  users: UserRecord[] = [];
+  filteredUsers: UserRecord[] = [];
 
   auditLogs: SystemLog[] = [
-    { timestamp: '2026-07-06 20:45:12', level: 'INFO', message: 'User pm@buildtrack.com updated Milestone (Foundation Phase)', user: 'Sarah Jenkins' },
-    { timestamp: '2026-07-06 20:30:05', level: 'INFO', message: 'New material allocation request created (Steel/Bricks)', user: 'Marcus Vance' },
-    { timestamp: '2026-07-06 19:15:33', level: 'WARN', message: 'Failed login attempt from IP 192.168.1.115', user: 'SYSTEM' },
-    { timestamp: '2026-07-06 18:22:11', level: 'ERROR', message: 'API Gateway timeout during connection to DB cache layer', user: 'SYSTEM' },
-    { timestamp: '2026-07-06 17:10:04', level: 'INFO', message: 'Admin dashboard initialized successfully', user: 'John Doe (Admin)' }
+    { timestamp: '2026-07-30 12:45:12', level: 'INFO', message: 'Admin dashboard initialized successfully', user: 'Admin' }
   ];
 
   showAddUserModal = false;
+  isSubmitting = false;
   userForm!: FormGroup;
 
-  constructor(private formBuilder: FormBuilder) {}
+  constructor(
+    private userService: UserService,
+    private toastService: ToastService,
+    private formBuilder: FormBuilder
+  ) {}
 
   ngOnInit(): void {
-    this.filteredUsers = [...this.users];
     this.initUserForm();
+    this.loadUsers();
   }
 
   initUserForm(): void {
@@ -293,14 +289,22 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  loadUsers(): void {
+    this.userService.getUsers().subscribe(list => {
+      this.users = list;
+      this.filteredUsers = [...this.users];
+      this.statCards[0].value = list.length.toString();
+    });
+  }
+
   getInitials(name: string): string {
+    if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
 
   refreshMetrics(): void {
-    console.log('Metrics refreshed');
-    // Simulated change in stats on refresh
-    this.statCards[2].value = '99.9%';
+    this.loadUsers();
+    this.toastService.showSuccess('Metrics & User Directory refreshed.');
   }
 
   filterUsers(event: any): void {
@@ -316,25 +320,46 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  toggleLock(user: SystemUser): void {
+  toggleLock(user: UserRecord): void {
     user.status = user.status === 'Locked' ? 'Active' : 'Locked';
     const logAction = user.status === 'Locked' ? 'Locked account access' : 'Restored account access';
-    this.addAuditLog('WARN', `${logAction} for user: ${user.email}`, 'John Doe (Admin)');
+    this.addAuditLog('WARN', `${logAction} for user: ${user.email}`, 'Admin');
+    this.toastService.showSuccess(`${logAction} for ${user.name}`);
   }
 
-  changeRole(user: SystemUser): void {
+  changeRole(user: UserRecord): void {
     const roles = ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client'];
     const currentIdx = roles.indexOf(user.role);
     const nextIdx = (currentIdx + 1) % roles.length;
-    const oldRole = user.role;
-    user.role = roles[nextIdx];
-    this.addAuditLog('INFO', `Changed role for user ${user.email} from ${oldRole} to ${user.role}`, 'John Doe (Admin)');
+    const newRole = roles[nextIdx];
+
+    this.userService.updateUserRole(user.id, newRole).subscribe({
+      next: () => {
+        user.role = newRole;
+        this.addAuditLog('INFO', `Changed role for user ${user.email} to ${newRole}`, 'Admin');
+        this.toastService.showSuccess(`Role updated to ${newRole} for ${user.name}`);
+      },
+      error: () => {
+        this.toastService.showError('Failed to update user role.');
+      }
+    });
   }
 
-  deleteUser(user: SystemUser): void {
-    this.users = this.users.filter(u => u.id !== user.id);
-    this.filteredUsers = this.filteredUsers.filter(u => u.id !== user.id);
-    this.addAuditLog('WARN', `Deleted user account: ${user.email}`, 'John Doe (Admin)');
+  deleteUser(user: UserRecord): void {
+    if (confirm(`Are you sure you want to delete user account for ${user.name}?`)) {
+      this.userService.deleteUser(user.id).subscribe({
+        next: () => {
+          this.users = this.users.filter(u => u.id !== user.id);
+          this.filteredUsers = this.filteredUsers.filter(u => u.id !== user.id);
+          this.statCards[0].value = this.users.length.toString();
+          this.addAuditLog('WARN', `Deleted user account: ${user.email}`, 'Admin');
+          this.toastService.showSuccess('User account deleted successfully.');
+        },
+        error: () => {
+          this.toastService.showError('Failed to delete user.');
+        }
+      });
+    }
   }
 
   openAddUserModal(): void {
@@ -347,20 +372,27 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   saveUser(): void {
-    if (this.userForm.valid) {
-      const newUser: SystemUser = {
-        id: this.users.length + 1,
-        name: this.userForm.value.name,
-        email: this.userForm.value.email,
-        role: this.userForm.value.role,
-        status: 'Pending',
-        lastActive: 'Never'
-      };
-      this.users.unshift(newUser);
-      this.filteredUsers = [...this.users];
-      this.addAuditLog('INFO', `Registered new user: ${newUser.email} (${newUser.role})`, 'John Doe (Admin)');
-      this.closeAddUserModal();
-    }
+    if (this.userForm.invalid) return;
+
+    this.isSubmitting = true;
+    const formVal = this.userForm.value;
+
+    this.userService.registerUser({
+      name: formVal.name,
+      email: formVal.email,
+      role: formVal.role
+    }).subscribe({
+      next: (created) => {
+        this.isSubmitting = false;
+        this.closeAddUserModal();
+        this.toastService.showSuccess(`User ${created.name} registered successfully!`);
+        this.loadUsers();
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.toastService.showError('Failed to register user.');
+      }
+    });
   }
 
   getLogLevelClass(level: string): string {

@@ -1,169 +1,147 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, BehaviorSubject } from 'rxjs';
-import { delay } from 'rxjs/operators';
-import { Worker, AttendanceLog, ShiftSchedule } from '../interfaces/workforce.interface';
+import { HttpClient } from '@angular/common/http';
+import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
+import { AttendanceLog, ShiftSchedule, Worker, WorkerRegistration } from '../interfaces/workforce.interface';
 
-@Injectable({
-  providedIn: 'root'
-})
+interface ApiWorker {
+  id: number;
+  project_id: number;
+  name: string;
+  phone?: string | null;
+  designation: string;
+  salary: number;
+}
+
+interface ApiAttendance {
+  id: number;
+  worker_id: number;
+  project_id: number;
+  attendance_date: string;
+  status: AttendanceLog['status'];
+  check_in: string;
+  check_out?: string | null;
+}
+
+@Injectable({ providedIn: 'root' })
 export class WorkforceService {
-  private workers: Worker[] = [
-    { id: 1, name: 'Liam Thompson', category: 'Skilled Worker', email: 'liam.t@buildtrack.com', phone: '+1 555-0199', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'LT' },
-    { id: 2, name: 'Sophia Alvarez', category: 'Supervisor', email: 'sophia.a@buildtrack.com', phone: '+1 555-0188', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'SA' },
-    { id: 3, name: 'Jackson Briggs', category: 'Unskilled Worker', email: 'jackson.b@buildtrack.com', phone: '+1 555-0177', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'JB' },
-    { id: 4, name: 'Olivia Martinez', category: 'Engineer', email: 'olivia.m@buildtrack.com', phone: '+1 555-0166', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'OM' },
-    { id: 5, name: 'Ethan Carter', category: 'Skilled Worker', email: 'ethan.c@buildtrack.com', phone: '+1 555-0155', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'EC' },
-    { id: 6, name: 'Marcus Vance', category: 'Contractor', email: 'contractor@buildtrack.com', phone: '+1 555-0144', shift: 'Morning', status: 'Active', attendance: 'Present', avatarInitials: 'MV' },
-    { id: 7, name: 'Dave Miller', category: 'Skilled Worker', email: 'dave.m@buildtrack.com', phone: '+1 555-0133', shift: 'Night', status: 'Active', attendance: 'Absent', avatarInitials: 'DM' },
-    { id: 8, name: 'Arthur Dent', category: 'Skilled Worker', email: 'arthur.d@buildtrack.com', phone: '+1 555-0122', shift: 'Night', status: 'Active', attendance: 'Absent', avatarInitials: 'AD' }
-  ];
+  private readonly workersUrl = 'http://127.0.0.1:8000/workers';
+  private readonly attendanceUrl = 'http://127.0.0.1:8000/attendance';
 
-  private attendanceLogs: AttendanceLog[] = [
-    { id: 1, workerName: 'Liam Thompson', category: 'Skilled Worker', checkInTime: '08:00 AM', status: 'Present' },
-    { id: 2, workerName: 'Sophia Alvarez', category: 'Supervisor', checkInTime: '07:45 AM', checkOutTime: '04:30 PM', status: 'Present' },
-    { id: 3, workerName: 'Jackson Briggs', category: 'Unskilled Worker', checkInTime: '08:15 AM', status: 'Present' },
-    { id: 4, workerName: 'Olivia Martinez', category: 'Engineer', checkInTime: '08:00 AM', status: 'Present' },
-    { id: 5, workerName: 'Ethan Carter', category: 'Skilled Worker', checkInTime: '08:02 AM', status: 'Present' }
-  ];
+  // Shift scheduling remains local until the shift API is implemented.
+  private schedules: ShiftSchedule[] = [];
 
-  private schedules: ShiftSchedule[] = [
-    { workerId: 1, workerName: 'Liam Thompson', role: 'Skilled Worker', mon: 'Morning', tue: 'Morning', wed: 'Morning', thu: 'Morning', fri: 'Morning', sat: 'Off', sun: 'Off' },
-    { workerId: 2, workerName: 'Sophia Alvarez', role: 'Supervisor', mon: 'Morning', tue: 'Morning', wed: 'Morning', thu: 'Morning', fri: 'Morning', sat: 'Morning', sun: 'Off' },
-    { workerId: 3, workerName: 'Jackson Briggs', role: 'Unskilled Worker', mon: 'Morning', tue: 'Morning', wed: 'Morning', thu: 'Morning', fri: 'Morning', sat: 'Off', sun: 'Off' },
-    { workerId: 4, workerName: 'Olivia Martinez', role: 'Engineer', mon: 'Morning', tue: 'Morning', wed: 'Morning', thu: 'Morning', fri: 'Morning', sat: 'Off', sun: 'Off' },
-    { workerId: 7, workerName: 'Dave Miller', role: 'Skilled Worker', mon: 'Night', tue: 'Night', wed: 'Night', thu: 'Night', fri: 'Night', sat: 'Off', sun: 'Off' },
-    { workerId: 8, workerName: 'Arthur Dent', role: 'Skilled Worker', mon: 'Night', tue: 'Night', wed: 'Night', thu: 'Night', fri: 'Night', sat: 'Off', sun: 'Off' }
-  ];
-
-  private workersSubject = new BehaviorSubject<Worker[]>(this.workers);
-  workers$ = this.workersSubject.asObservable();
-
-  private attendanceSubject = new BehaviorSubject<AttendanceLog[]>(this.attendanceLogs);
-  attendance$ = this.attendanceSubject.asObservable();
-
-  private schedulesSubject = new BehaviorSubject<ShiftSchedule[]>(this.schedules);
-  schedules$ = this.schedulesSubject.asObservable();
-
-  constructor() {}
+  constructor(private http: HttpClient) {}
 
   getWorkers(): Observable<Worker[]> {
-    return this.workers$.pipe(delay(400));
+    return this.http.get<ApiWorker[]>(`${this.workersUrl}/?limit=1000`).pipe(
+      map(workers => workers.map(worker => this.toWorker(worker)))
+    );
+  }
+
+  registerWorker(worker: WorkerRegistration): Observable<Worker> {
+    return this.http.post<ApiWorker>(`${this.workersUrl}/`, {
+      project_id: worker.projectId,
+      name: worker.name,
+      phone: worker.phone,
+      designation: worker.category,
+      salary: worker.salary
+    }).pipe(map(created => this.toWorker(created)));
   }
 
   getAttendanceLogs(): Observable<AttendanceLog[]> {
-    return this.attendance$.pipe(delay(400));
+    return forkJoin({
+      workers: this.getWorkers(),
+      attendance: this.http.get<ApiAttendance[]>(`${this.attendanceUrl}/`)
+    }).pipe(
+      map(({ workers, attendance }) => attendance
+        .filter(record => record.attendance_date === this.today())
+        .map(record => this.toAttendanceLog(record, workers))
+        .filter((record): record is AttendanceLog => !!record)
+      )
+    );
   }
 
-  getSchedules(): Observable<ShiftSchedule[]> {
-    return this.schedules$.pipe(delay(400));
-  }
-
-  registerWorker(worker: Omit<Worker, 'id' | 'status' | 'attendance' | 'avatarInitials'>): Observable<Worker> {
-    const initials = worker.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    const newWorker: Worker = {
-      ...worker,
-      id: Math.max(...this.workers.map(w => w.id), 0) + 1,
-      status: 'Active',
-      attendance: 'Absent',
-      avatarInitials: initials
-    };
-
-    // Add default shift schedule
-    const newSchedule: ShiftSchedule = {
-      workerId: newWorker.id,
-      workerName: newWorker.name,
-      role: newWorker.category,
-      mon: worker.shift,
-      tue: worker.shift,
-      wed: worker.shift,
-      thu: worker.shift,
-      fri: worker.shift,
-      sat: 'Off',
-      sun: 'Off'
-    };
-
-    this.workers.unshift(newWorker);
-    this.workersSubject.next([...this.workers]);
-
-    this.schedules.unshift(newSchedule);
-    this.schedulesSubject.next([...this.schedules]);
-
-    return of(newWorker).pipe(delay(500));
-  }
-
-  updateWorker(worker: Worker): Observable<Worker> {
-    const index = this.workers.findIndex(w => w.id === worker.id);
-    if (index !== -1) {
-      this.workers[index] = { ...worker };
-      this.workersSubject.next([...this.workers]);
-      
-      const sIdx = this.schedules.findIndex(s => s.workerId === worker.id);
-      if (sIdx !== -1) {
-        this.schedules[sIdx].mon = worker.shift;
-        this.schedules[sIdx].tue = worker.shift;
-        this.schedules[sIdx].wed = worker.shift;
-        this.schedules[sIdx].thu = worker.shift;
-        this.schedules[sIdx].fri = worker.shift;
-        this.schedulesSubject.next([...this.schedules]);
-      }
-    }
-    return of(worker).pipe(delay(500));
-  }
-
-  deleteWorker(id: number): Observable<boolean> {
-    const len = this.workers.length;
-    this.workers = this.workers.filter(w => w.id !== id);
-    this.workersSubject.next([...this.workers]);
-    this.schedules = this.schedules.filter(s => s.workerId !== id);
-    this.schedulesSubject.next([...this.schedules]);
-    return of(this.workers.length < len).pipe(delay(400));
-  }
-
-  logAttendance(log: Omit<AttendanceLog, 'id' | 'status'>): Observable<AttendanceLog> {
-    const newLog: AttendanceLog = {
-      ...log,
-      id: Math.max(...this.attendanceLogs.map(l => l.id), 0) + 1,
-      status: 'Present'
-    };
-
-    // Update worker attendance status dynamically
-    const worker = this.workers.find(w => w.name === log.workerName);
-    if (worker) {
-      worker.attendance = 'Present';
-      this.workersSubject.next([...this.workers]);
-    }
-
-    this.attendanceLogs.unshift(newLog);
-    this.attendanceSubject.next([...this.attendanceLogs]);
-    return of(newLog).pipe(delay(450));
+  logAttendance(worker: Worker, checkInTime: string): Observable<AttendanceLog> {
+    return this.http.post<ApiAttendance>(`${this.attendanceUrl}/`, {
+      worker_id: worker.id,
+      project_id: worker.projectId,
+      attendance_date: this.today(),
+      status: 'Present',
+      check_in: checkInTime,
+      check_out: ''
+    }).pipe(
+      map(record => this.toAttendanceLog(record, [worker])!),
+    );
   }
 
   checkoutWorker(logId: number, checkoutTime: string): Observable<AttendanceLog | undefined> {
-    const log = this.attendanceLogs.find(l => l.id === logId);
-    if (log) {
-      log.checkOutTime = checkoutTime;
-      this.attendanceSubject.next([...this.attendanceLogs]);
-    }
-    return of(log).pipe(delay(300));
+    return this.http.get<ApiAttendance>(`${this.attendanceUrl}/${logId}`).pipe(
+      switchMap(record => this.http.put<ApiAttendance>(`${this.attendanceUrl}/${logId}`, {
+        ...record,
+        check_out: checkoutTime
+      })),
+      switchMap(updated => this.getWorkers().pipe(
+        map(workers => this.toAttendanceLog(updated, workers))
+      ))
+    );
+  }
+
+  getSchedules(): Observable<ShiftSchedule[]> {
+    return of(this.schedules);
   }
 
   updateWorkerShift(workerId: number, shift: 'Morning' | 'Night' | 'Off'): Observable<boolean> {
-    const worker = this.workers.find(w => w.id === workerId);
-    if (worker) {
-      worker.shift = shift;
-      this.workersSubject.next([...this.workers]);
-
-      const sched = this.schedules.find(s => s.workerId === workerId);
-      if (sched) {
-        sched.mon = shift;
-        sched.tue = shift;
-        sched.wed = shift;
-        sched.thu = shift;
-        sched.fri = shift;
-        this.schedulesSubject.next([...this.schedules]);
-      }
-      return of(true).pipe(delay(300));
+    const schedule = this.schedules.find(item => item.workerId === workerId);
+    if (schedule) {
+      schedule.mon = shift;
+      schedule.tue = shift;
+      schedule.wed = shift;
+      schedule.thu = shift;
+      schedule.fri = shift;
     }
-    return of(false).pipe(delay(300));
+    return of(!!schedule);
+  }
+
+  private toWorker(worker: ApiWorker): Worker {
+    return {
+      id: worker.id,
+      projectId: worker.project_id,
+      name: worker.name,
+      category: this.toCategory(worker.designation),
+      email: '',
+      phone: worker.phone || '',
+      shift: 'Morning',
+      status: 'Active',
+      attendance: 'Absent',
+      avatarInitials: worker.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase(),
+      salary: worker.salary
+    };
+  }
+
+  private toAttendanceLog(record: ApiAttendance, workers: Worker[]): AttendanceLog | undefined {
+    const worker = workers.find(item => item.id === record.worker_id);
+    if (!worker) return undefined;
+
+    return {
+      id: record.id,
+      workerId: record.worker_id,
+      projectId: record.project_id,
+      workerName: worker.name,
+      category: worker.category,
+      checkInTime: record.check_in,
+      checkOutTime: record.check_out || undefined,
+      status: record.status
+    };
+  }
+
+  private toCategory(designation: string): Worker['category'] {
+    const categories: Worker['category'][] = ['Engineer', 'Supervisor', 'Contractor', 'Skilled Worker', 'Unskilled Worker'];
+    return categories.includes(designation as Worker['category'])
+      ? designation as Worker['category']
+      : 'Skilled Worker';
+  }
+
+  private today(): string {
+    return new Date().toISOString().slice(0, 10);
   }
 }
