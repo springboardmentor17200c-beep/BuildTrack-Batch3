@@ -57,37 +57,62 @@ export class AuthService {
     return username.charAt(0).toUpperCase() + username.slice(1);
   }
 
-  login(email: string, password: string, role: string): Observable<any> {
-    console.log("AuthService login called (mock-only)");
+  login(email: string, password: string, role?: string): Observable<any> {
 
-    const user: User = {
-      name: this.getMockName(email),
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-id'
-    };
+  const body = new URLSearchParams();
+  body.set('username', email);
+  body.set('password', password);
 
-    localStorage.setItem("bt_user", JSON.stringify(user));
-    this.currentUserSubject.next(user);
+  const headers = new HttpHeaders({
+    'Content-Type': 'application/x-www-form-urlencoded'
+  });
 
-    return of({ access_token: 'mock-jwt-token-id' });
-  }
+  return this.http.post<any>(
+    `${this.apiUrl}/login`,
+    body.toString(),
+    { headers }
+  ).pipe(
 
-  register(name: string, email: string, role: string): Observable<any> {
-    console.log("AuthService register called (mock-only)");
+    tap(response => {
 
-    const user: User = {
-      name: name,
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-id'
-    };
+      const user: User = {
+        name: this.getMockName(email),
+        email: email,
+        role: role || 'User',
+        token: response.access_token
+      };
 
-    localStorage.setItem("bt_user", JSON.stringify(user));
-    this.currentUserSubject.next(user);
 
-    return of({ message: "User registered successfully" });
-  }
+      localStorage.setItem(
+        'bt_user',
+        JSON.stringify(user)
+      );
+
+
+      this.currentUserSubject.next(user);
+
+    })
+
+  );
+
+}
+ register(
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+  phone: string
+): Observable<any> {
+
+  return this.http.post(`${this.apiUrl}/register`, {
+    name,
+    email,
+    password,
+    role,
+    phone
+  });
+
+}
 
   resetPassword(email: string): Observable<boolean> {
 

@@ -97,6 +97,28 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             </div>
 
+             <!-- Phone Number -->
+<div class="form-group-custom">
+  <label class="bt-form-label">Phone Number</label>
+
+  <input
+    type="text"
+    class="form-control bt-form-control"
+    formControlName="phone"
+    placeholder="9876543210"
+    [class.is-invalid]="submitted && f['phone'].errors">
+
+  <div *ngIf="submitted && f['phone'].errors" class="invalid-feedback text-xs">
+    <span *ngIf="f['phone'].errors['required']">
+      Phone number is required
+    </span>
+
+    <span *ngIf="f['phone'].errors['pattern']">
+      Enter a valid 10-digit phone number
+    </span>
+  </div>
+</div>
+
             <!-- Password Field -->
             <div class="form-group-custom">
               <label class="bt-form-label">Password</label>
@@ -107,6 +129,8 @@ import { AuthService } from '../../../core/services/auth.service';
                 <span *ngIf="f['password'].errors['minlength']">Password must be at least 6 characters</span>
               </div>
             </div>
+
+           
 
             <!-- Confirm Password Field -->
             <div class="form-group-custom">
@@ -232,7 +256,8 @@ export class RegisterComponent implements OnInit {
       role: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
-      acceptTerms: [false, Validators.requiredTrue]
+      acceptTerms: [false, Validators.requiredTrue],
+      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
     }, {
       validators: this.mustMatch('password', 'confirmPassword')
     });
@@ -261,24 +286,40 @@ export class RegisterComponent implements OnInit {
     };
   }
 
-  onSubmit(): void {
-    this.submitted = true;
-    this.error = '';
+  
+onSubmit(): void {
+  this.submitted = true;
+  this.error = '';
 
-    if (this.registerForm.invalid) {
-      return;
-    }
-
-    const { fullName, email, role } = this.registerForm.value;
-    this.authService.register(fullName, email, role).subscribe({
-      next: () => {
-        this.redirectToDashboard(role);
-      },
-      error: err => {
-        this.error = err.message || 'Registration failed.';
-      }
-    });
+  if (this.registerForm.invalid) {
+    return;
   }
+
+  const {
+    fullName,
+    email,
+    password,
+    role,
+    phone
+  } = this.registerForm.value;
+
+  this.authService.register(
+    fullName,
+    email,
+    password,
+    role,
+   phone
+  ).subscribe({
+    next: (res) => {
+      console.log(res);
+      this.redirectToDashboard(role);
+    },
+    error: (err) => {
+      console.log(err);
+      this.error = err.error?.detail || "Registration failed";
+    }
+  });
+}
 
   private redirectToDashboard(role: string): void {
     switch (role) {

@@ -53,7 +53,7 @@ def get_milestone(
 @router.put("/{milestone_id}")
 def update_milestone(
     milestone_id: int,
-    milestone: schemas.MilestoneUpdate,
+    milestone: schemas.MilestoneCreate,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("Admin", "Project Manager"))
 ):

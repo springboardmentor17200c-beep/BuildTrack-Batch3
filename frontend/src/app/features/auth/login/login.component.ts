@@ -299,34 +299,40 @@ export class LoginComponent implements OnInit {
 
   get f() { return this.loginForm.controls; }
 
-  onSubmit(): void {
-    this.submitted = true;
-    this.error = '';
+onSubmit(): void {
+  this.submitted = true;
+  this.error = '';
 
-    if (this.loginForm.invalid) {
-      return;
-    }
-
-    this.isLoading = true;
-
-    const { email, password, role } = this.loginForm.value;
-    
-    // Simulate slight loading latency
-    setTimeout(() => {
-      this.authService.login(email, password, role).subscribe({
-        next: () => {
-          this.isLoading = false;
-          this.toastService.showSuccess(`Welcome back! Logged in as ${role}.`);
-          this.redirectToDashboard(role);
-        },
-        error: (err: any) => {
-          this.isLoading = false;
-          this.error = err.message || 'Login failed. Please check credentials.';
-          this.toastService.showError(this.error);
-        }
-      });
-    }, 1000);
+  if (this.loginForm.invalid) {
+    return;
   }
+
+  this.isLoading = true;
+
+  const { email, password, role } = this.loginForm.value;
+
+  this.authService.login(email, password,role).subscribe({
+    next: (response:any) => {
+
+      this.isLoading = false;
+
+      // save role after login
+      localStorage.setItem('userRole', role);
+
+      this.toastService.showSuccess(
+        `Welcome back! Logged in as ${role}.`
+      );
+
+      this.redirectToDashboard(role);
+    },
+
+    error: (err:any) => {
+      this.isLoading = false;
+      this.error = err.message || 'Login failed';
+      this.toastService.showError(this.error);
+    }
+  });
+}
 
   onSocialLogin(provider: 'Google' | 'Facebook'): void {
     if (provider === 'Google') {
@@ -343,7 +349,7 @@ export class LoginComponent implements OnInit {
       const email = `${provider.toLowerCase()}@buildtrack.com`;
       const role = 'Project Manager'; // default PM dashboard access for social logins
       
-      this.authService.login(email, 'password123', role).subscribe({
+      this.authService.login(email, 'password123',).subscribe({
         next: () => {
           this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
           this.redirectToDashboard(role);
