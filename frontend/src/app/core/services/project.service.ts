@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin, map, Observable, switchMap, throwError } from 'rxjs';
+import { forkJoin, map, Observable, switchMap, throwError, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Project, Milestone } from '../interfaces/project.interface';
 import { AuthService } from './auth.service';
+
 
 interface ApiProject {
   id: number;
@@ -46,18 +48,22 @@ export class ProjectService {
   getProjects(): Observable<Project[]> {
     return forkJoin({
       projects: this.http.get<ApiProject[]>(`${this.apiUrl}/projects/?limit=1000`),
-      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`)
+      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`).pipe(catchError(() => of([])))
     }).pipe(
       map(({ projects, milestones }) => projects.map(project =>
         this.toProject(project, milestones.filter(milestone => milestone.project_id === project.id))
-      ))
+      )),
+      catchError(err => {
+        console.error('Error in getProjects', err);
+        return of([]);
+      })
     );
   }
 
   getProjectById(id: number): Observable<Project | undefined> {
     return forkJoin({
       project: this.http.get<ApiProject>(`${this.apiUrl}/projects/${id}`),
-      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`)
+      milestones: this.http.get<ApiMilestone[]>(`${this.apiUrl}/milestones/?limit=1000`).pipe(catchError(() => of([])))
     }).pipe(
       map(({ project, milestones }) => this.toProject(
         project,
@@ -65,6 +71,7 @@ export class ProjectService {
       ))
     );
   }
+
 
   createProject(form: ProjectFormValue): Observable<Project> {
     const managerId = this.authService.currentUserValue?.id;
@@ -103,6 +110,26 @@ export class ProjectService {
       switchMap(() => this.getProjectById(projectId))
     );
   }
+
+  createMilestone(projectId: number, milestoneName: string, dueDate: string): Observable<Project | undefined> {
+    const payload: Partial<ApiMilestone> = {
+      project_id: projectId,
+      milestone_name: milestoneName,
+      due_date: dueDate,
+      completed_date: null,
+      status: 'Pending'
+    };
+    return this.http.post<ApiMilestone>(`${this.apiUrl}/milestones/`, payload).pipe(
+      switchMap(() => this.getProjectById(projectId))
+    );
+  }
+
+  deleteMilestone(projectId: number, milestoneId: number): Observable<Project | undefined> {
+    return this.http.delete(`${this.apiUrl}/milestones/${milestoneId}`).pipe(
+      switchMap(() => this.getProjectById(projectId))
+    );
+  }
+
 
   private toApiPayload(form: ProjectFormValue, managerId: number, status: Project['status']) {
     return {

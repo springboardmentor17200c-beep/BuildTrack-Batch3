@@ -1,16 +1,17 @@
-
-
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, constr, Field
 from datetime import date
 from typing import Optional
-from pydantic import Field
-
 from enum import Enum
 
 class ProjectStatus(str, Enum):
-    Pending="Pending"
-    Running="Running"
-    Completed="Completed"
+    Pending = "Pending"
+    Running = "Running"
+    Completed = "Completed"
+
+class AttendanceStatus(str, Enum):
+    Present = "Present"
+    Absent = "Absent"
+    OnLeave = "On Leave"
 
 
 # ---------------- USERS ----------------
@@ -62,8 +63,10 @@ class MilestoneCreate(BaseModel):
     due_date: date
     completed_date: Optional[date] = None
     status: str
+
 class MilestoneUpdate(MilestoneCreate):
     pass
+
 
 # ---------------- RESOURCES ----------------
 
@@ -80,6 +83,7 @@ class ResourceCreate(BaseModel):
 class InventoryCreate(BaseModel):
     project_id: int
     material_name: str
+    category: str = "Cement"
     unit: str
     supplier: str
     quantity: int = Field(gt=0)
@@ -87,6 +91,7 @@ class InventoryCreate(BaseModel):
 
 class InventoryUpdate(InventoryCreate):
     pass
+
 
 # ---------------- WORKERS ----------------
 
@@ -100,18 +105,21 @@ class WorkerCreate(BaseModel):
 class WorkerUpdate(WorkerCreate):
     pass
 
+
 # ---------------- ATTENDANCE ----------------
 
 class AttendanceCreate(BaseModel):
     worker_id: int
     project_id: int
     attendance_date: date
-    status: ProjectStatus
+    status: AttendanceStatus
     check_in: str
-    check_out: str
+    check_out: str = ""
 
 class AttendanceUpdate(AttendanceCreate):
     pass
+
+
 # ---------------- PROCUREMENT ----------------
 
 class ProcurementCreate(BaseModel):
@@ -120,11 +128,12 @@ class ProcurementCreate(BaseModel):
     supplier: str
     quantity: int = Field(gt=0)
     total_cost: float = Field(gt=0)
-    status: str
+    status: str = "Pending"
     purchase_date: date
 
 class ProcurementUpdate(ProcurementCreate):
     pass
+
 
 # ---------------- NOTIFICATIONS ----------------
 
@@ -136,6 +145,7 @@ class NotificationCreate(BaseModel):
 class NotificationUpdate(NotificationCreate):
     pass
 
+
 # ---------------- REPORTS ----------------
 
 class ReportCreate(BaseModel):
@@ -143,6 +153,6 @@ class ReportCreate(BaseModel):
     generated_by: int
     report_type: str
     report_url: str
-    
+
 class ReportUpdate(ReportCreate):
     pass

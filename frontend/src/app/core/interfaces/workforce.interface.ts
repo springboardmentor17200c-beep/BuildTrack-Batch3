@@ -1,5 +1,6 @@
 export interface Worker {
   id: number;
+  projectId: number;
   name: string;
   category: 'Engineer' | 'Supervisor' | 'Contractor' | 'Skilled Worker' | 'Unskilled Worker';
   email: string;
@@ -8,10 +9,21 @@ export interface Worker {
   status: 'Active' | 'On Leave' | 'Suspended';
   attendance: 'Present' | 'Absent' | 'On Leave';
   avatarInitials: string;
+  salary: number;
+}
+
+export interface WorkerRegistration {
+  projectId: number;
+  name: string;
+  category: Worker['category'];
+  phone: string;
+  salary: number;
 }
 
 export interface AttendanceLog {
   id: number;
+  workerId: number;
+  projectId: number;
   workerName: string;
   category: string;
   checkInTime: string;

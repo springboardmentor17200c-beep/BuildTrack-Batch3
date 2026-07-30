@@ -74,6 +74,19 @@ def delete_user(db: Session, user_id: int):
 
     return db_user
 
+
+def update_user_role(db: Session, user_id: int, role: str):
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+
+    db_user.role = role
+    db.commit()
+    db.refresh(db_user)
+
+    return db_user
+
+
 # ======================================================
 # PROJECT CRUD
 # ======================================================
@@ -320,6 +333,7 @@ def create_inventory(db: Session, inventory: schemas.InventoryCreate):
     db_inventory = models.Inventory(
         project_id=inventory.project_id,
         material_name=inventory.material_name,
+        category=getattr(inventory, 'category', 'Cement') or 'Cement',
         quantity=inventory.quantity,
         unit=inventory.unit,
         minimum_stock=inventory.minimum_stock,
@@ -367,6 +381,7 @@ def update_inventory(
 
     db_inventory.project_id = inventory.project_id
     db_inventory.material_name = inventory.material_name
+    db_inventory.category = getattr(inventory, 'category', 'Cement') or 'Cement'
     db_inventory.quantity = inventory.quantity
     db_inventory.unit = inventory.unit
     db_inventory.minimum_stock = inventory.minimum_stock
@@ -376,6 +391,7 @@ def update_inventory(
     db.refresh(db_inventory)
 
     return db_inventory
+
 
 
 def delete_inventory(db: Session, inventory_id: int):
@@ -639,6 +655,18 @@ def delete_procurement(db: Session, procurement_id: int):
 
     return db_procurement
 
+
+def update_procurement_status(db: Session, procurement_id: int, status: str):
+    db_procurement = get_procurement(db, procurement_id)
+    if not db_procurement:
+        return None
+
+    db_procurement.status = status
+    db.commit()
+    db.refresh(db_procurement)
+    return db_procurement
+
+
 # ======================================================
 # NOTIFICATIONS CRUD
 # ======================================================
@@ -849,16 +877,32 @@ def pending_procurements(db):
 
 
 def allocate_resource(db: Session, resource_id: int):
-
     resource = db.query(models.Resource).filter(
         models.Resource.id == resource_id
     ).first()
 
+    if not resource:
+        return None
+
     resource.status = "Allocated"
-
     db.commit()
-
+    db.refresh(resource)
     return resource
+
+
+def update_resource_status(db: Session, resource_id: int, status: str):
+    resource = db.query(models.Resource).filter(
+        models.Resource.id == resource_id
+    ).first()
+
+    if not resource:
+        return None
+
+    resource.status = status
+    db.commit()
+    db.refresh(resource)
+    return resource
+
 
 
 def available_resources(db: Session):

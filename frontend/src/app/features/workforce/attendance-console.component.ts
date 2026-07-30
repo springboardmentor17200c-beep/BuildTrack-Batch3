@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { forkJoin } from 'rxjs';
 import { WorkforceService } from '../../core/services/workforce.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Worker, AttendanceLog } from '../../core/interfaces/workforce.interface';
@@ -25,11 +26,11 @@ import { Worker, AttendanceLog } from '../../core/interfaces/workforce.interface
             <!-- Worker Selection -->
             <div class="mb-3">
               <label class="bt-form-label">Select Staff Member</label>
-              <select class="form-select bt-form-control" formControlName="workerName" (change)="onWorkerSelect($event)">
-                <option value="" disabled selected>Select staff member...</option>
-                <option *ngFor="let w of absentWorkers" [value]="w.name">{{ w.name }} ({{ w.category }})</option>
+              <select class="form-select bt-form-control" formControlName="workerId" (change)="onWorkerSelect($event)">
+                <option [ngValue]="null" disabled>Select staff member...</option>
+                <option *ngFor="let w of absentWorkers" [ngValue]="w.id">{{ w.name }} ({{ w.category }})</option>
               </select>
-              <div *ngIf="submitted && f['workerName'].errors" class="text-danger text-xs mt-1">
+              <div *ngIf="submitted && f['workerId'].errors" class="text-danger text-xs mt-1">
                 <span>Staff selection is required</span>
               </div>
             </div>
@@ -128,7 +129,7 @@ export class AttendanceConsoleComponent implements OnInit {
 
   ngOnInit(): void {
     this.checkInForm = this.formBuilder.group({
-      workerName: ['', Validators.required],
+      workerId: [null, Validators.required],
       category: [''],
       checkInTime: ['08:00 AM', Validators.required]
     });
@@ -136,20 +137,25 @@ export class AttendanceConsoleComponent implements OnInit {
   }
 
   loadData(): void {
-    this.workforceService.getWorkers().subscribe(list => {
-      this.workers = list;
-      this.absentWorkers = list.filter(w => w.attendance === 'Absent');
-    });
-    this.workforceService.getAttendanceLogs().subscribe(list => {
-      this.attendanceLogs = list;
+    forkJoin({
+      workers: this.workforceService.getWorkers(),
+      logs: this.workforceService.getAttendanceLogs()
+    }).subscribe({ next: ({ workers, logs }) => {
+      this.workers = workers;
+      this.attendanceLogs = logs;
+      const checkedInWorkerIds = new Set(logs.filter(log => !log.checkOutTime).map(log => log.workerId));
+      this.absentWorkers = workers.filter(worker => !checkedInWorkerIds.has(worker.id));
+    }, error: () => {
+      this.toastService.showError('Failed to load attendance data.');
+    }
     });
   }
 
   get f() { return this.checkInForm.controls; }
 
   onWorkerSelect(event: any): void {
-    const name = event.target.value;
-    const w = this.workers.find(item => item.name === name);
+    const workerId = Number(event.target.value);
+    const w = this.workers.find(item => item.id === workerId);
     if (w) {
       this.checkInForm.patchValue({ category: w.category });
     }
@@ -165,16 +171,18 @@ export class AttendanceConsoleComponent implements OnInit {
     this.isLoading = true;
     const formVal = this.checkInForm.value;
 
-    this.workforceService.logAttendance({
-      workerName: formVal.workerName,
-      category: formVal.category,
-      checkInTime: formVal.checkInTime
-    }).subscribe({
+    const worker = this.workers.find(item => item.id === formVal.workerId);
+    if (!worker) {
+      this.isLoading = false;
+      return;
+    }
+
+    this.workforceService.logAttendance(worker, formVal.checkInTime).subscribe({
       next: () => {
         this.isLoading = false;
-        this.toastService.showSuccess(`Registered check-in for ${formVal.workerName}.`);
+        this.toastService.showSuccess(`Registered check-in for ${worker.name}.`);
         this.checkInForm.reset({
-          workerName: '',
+          workerId: null,
           category: '',
           checkInTime: '08:00 AM'
         });

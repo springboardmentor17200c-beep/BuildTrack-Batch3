@@ -34,14 +34,16 @@ import { Material } from '../../core/interfaces/inventory.interface';
           <div class="mb-3">
             <label class="bt-form-label">Inventory Category</label>
             <select class="form-select bt-form-control" formControlName="category">
-              <option value="Raw Materials">Raw Materials</option>
-              <option value="Structural Metal">Structural Metal</option>
-              <option value="Masonry Blocks">Masonry Blocks</option>
-              <option value="Aggregates">Aggregates</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Plumbing">Plumbing</option>
+              <option value="Cement">Cement</option>
+              <option value="Steel">Steel</option>
+              <option value="Bricks">Bricks</option>
+              <option value="Sand">Sand</option>
+              <option value="Concrete">Concrete</option>
+              <option value="Electrical Materials">Electrical Materials</option>
+              <option value="Plumbing Materials">Plumbing Materials</option>
             </select>
           </div>
+
 
           <!-- Quantity & Unit & Capacity -->
           <div class="row mb-3 g-2">
@@ -127,7 +129,8 @@ export class AddMaterialDialogComponent implements OnInit {
   ngOnInit(): void {
     this.materialForm = this.formBuilder.group({
       name: [this.material ? this.material.name : '', Validators.required],
-      category: [this.material ? this.material.category : 'Raw Materials', Validators.required],
+      category: [this.material ? this.material.category : 'Cement', Validators.required],
+
       quantity: [this.material ? this.material.quantity : '', Validators.required],
       unit: [this.material ? this.material.unit : 'Bags', Validators.required],
       capacityLimit: [this.material ? this.material.capacityLimit : 1000, [Validators.required, Validators.min(1)]]

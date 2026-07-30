@@ -3,7 +3,7 @@ import { HttpInterceptorFn } from '@angular/common/http';
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = localStorage.getItem('bt_token');
 
-  if (!token || !request.url.startsWith('http://127.0.0.1:8000')) {
+  if (!token || (!request.url.includes('127.0.0.1:8000') && !request.url.includes('localhost:8000'))) {
     return next(request);
   }
 

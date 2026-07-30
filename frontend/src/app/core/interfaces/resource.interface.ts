@@ -5,6 +5,8 @@ export interface Equipment {
   status: 'Available' | 'Assigned' | 'Maintenance';
   operator: string;
   serialNumber: string;
+  projectId?: number;
+  quantity?: number;
 }
 
 export interface ResourceAllocation {
@@ -15,3 +17,4 @@ export interface ResourceAllocation {
   startDate: string;
   status: 'In Use' | 'Standby' | 'Under Maintenance';
 }
+
