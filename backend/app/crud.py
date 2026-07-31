@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import hash_password
+from app import models
 
 
 # ======================================================
@@ -1176,3 +1177,19 @@ def absent_count(db: Session):
         models.Attendance.status == "Absent"
 
     ).scalar()
+
+
+
+def admin_dashboard(db):
+    return {
+        "total_projects": db.query(models.Project).count(),
+        "total_workers": db.query(models.Worker).count(),
+        "total_inventory": db.query(models.Inventory).count(),
+        "pending_procurements": db.query(models.Procurement)
+            .filter(models.Procurement.status == "Pending")
+            .count(),
+        "completed_projects": db.query(models.Project)
+            .filter(models.Project.status == "Completed")
+            .count(),
+        "notifications": db.query(models.Notification).count()
+    }

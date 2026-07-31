@@ -291,26 +291,11 @@ onSubmit(): void {
   this.submitted = true;
   this.error = '';
 
-<<<<<<< HEAD
+
   if (this.registerForm.invalid) {
     return;
-=======
-    if (this.registerForm.invalid) {
-      return;
-    }
 
-    const { fullName, email, password, role } = this.registerForm.value;
-    this.authService.register(fullName, email, password, role).subscribe({
-      next: () => {
-        this.router.navigate(['/login']);
-      },
-      error: err => {
-        this.error = err.error?.detail || 'Registration failed.';
-      }
-    });
->>>>>>> 471161618f1fcc8c3ac2404a743d1fb7371ffff6
   }
-
   const {
     fullName,
     email,

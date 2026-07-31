@@ -69,46 +69,9 @@ export class AuthService {
     );
   }
 
-<<<<<<< HEAD
-  login(email: string, password: string, role?: string): Observable<any> {
 
-  const body = new URLSearchParams();
-  body.set('username', email);
-  body.set('password', password);
+ 
 
-  const headers = new HttpHeaders({
-    'Content-Type': 'application/x-www-form-urlencoded'
-  });
-
-  return this.http.post<any>(
-    `${this.apiUrl}/login`,
-    body.toString(),
-    { headers }
-  ).pipe(
-
-    tap(response => {
-
-      const user: User = {
-        name: this.getMockName(email),
-        email: email,
-        role: role || 'User',
-        token: response.access_token
-      };
-
-
-      localStorage.setItem(
-        'bt_user',
-        JSON.stringify(user)
-      );
-
-
-      this.currentUserSubject.next(user);
-
-    })
-
-  );
-
-}
  register(
   name: string,
   email: string,
@@ -126,14 +89,7 @@ export class AuthService {
   });
 
 }
-=======
-  register(name: string, email: string, password: string, role: string): Observable<{ message: string; user: User }> {
-    return this.http.post<{ message: string; user: User }>(
-      `${this.apiUrl}/register`,
-      { name, email, password, role }
-    );
-  }
->>>>>>> 471161618f1fcc8c3ac2404a743d1fb7371ffff6
+
 
   resetPassword(email: string): Observable<boolean> {
     console.log('Reset password:', email);

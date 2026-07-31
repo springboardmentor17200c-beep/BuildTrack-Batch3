@@ -8,11 +8,50 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     Text,
-    Boolean
+    Boolean,
+    Enum
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
+
+
+from enum import Enum as PyEnum
+
+class ProjectStatusEnum(PyEnum):
+    Pending = "Pending"
+    Running = "Running"
+    Completed = "Completed"
+
+
+class AttendanceStatusEnum(PyEnum):
+    Present = "Present"
+    Absent = "Absent"
+    OnLeave = "On Leave"
+
+
+class ProcurementStatusEnum(PyEnum):
+    Pending = "Pending"
+    Approved = "Approved"
+    Ordered = "Ordered"
+    Delivered = "Delivered"
+    Cancelled = "Cancelled"
+
+
+class NotificationTypeEnum(PyEnum):
+    General = "General"
+    Procurement = "Procurement"
+    Inventory = "Inventory"
+    Worker = "Worker"
+    Project = "Project"
+
+
+class ReportTypeEnum(PyEnum):
+    Attendance = "Attendance"
+    Inventory = "Inventory"
+    Procurement = "Procurement"
+    Worker = "Worker"
+    Budget = "Budget"
 
 
 class User(Base):
@@ -27,9 +66,15 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
+    documents = relationship("Document")
     projects = relationship("Project", back_populates="manager",cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user",cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="creator",cascade="all, delete-orphan")
+    documents = relationship(
+    "Document",
+    back_populates="uploader",
+    cascade="all, delete-orphan"
+    )
 
    
 
@@ -39,7 +84,15 @@ class Project(Base):
     __tablename__ = "projects"
     __table_args__ = (
     CheckConstraint("budget >= 0", name="check_budget_positive"),
+
+ 
+  
 )
+    documents = relationship(
+          "Document",
+          back_populates="project",
+          cascade="all, delete-orphan"
+      )
 
     id = Column(Integer, primary_key=True, index=True)
     project_name = Column(String(150), nullable=False)
@@ -48,8 +101,16 @@ class Project(Base):
     budget = Column(Float,nullable=False)
     start_date = Column(Date)
     end_date = Column(Date)
-    status = Column(String(50))
-    manager_id = Column(Integer, ForeignKey("users.id"))
+    status = Column(
+    Enum(ProjectStatusEnum),
+    default=ProjectStatusEnum.Pending,
+    nullable=False
+     )
+    manager_id = Column(
+    Integer,
+    ForeignKey("users.id"),
+    index=True
+    )
 
     # Relationships
     manager = relationship("User", back_populates="projects")
@@ -60,6 +121,11 @@ class Project(Base):
     attendance = relationship("Attendance", back_populates="project",cascade="all, delete-orphan")
     procurements = relationship("Procurement", back_populates="project",cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="project",cascade="all, delete-orphan")
+    documents = relationship(
+    "Document",
+    back_populates="project",
+    cascade="all, delete-orphan"
+   )
 
     created_at = Column(
     DateTime,
@@ -79,7 +145,11 @@ class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+     )
     milestone_name = Column(String(100))
     due_date = Column(Date)
     completed_date = Column(Date)
@@ -94,7 +164,11 @@ class Resource(Base):
 )
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+      )
     resource_name = Column(String(100))
     category = Column(String(50))
     quantity = Column(Integer,nullable=False)
@@ -109,7 +183,11 @@ class Inventory(Base):
 )
 
     id = Column(Integer, primary_key=True,index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+)
     material_name = Column(String(100))
     category = Column(String(50), default="Cement")
     quantity = Column(Integer, nullable=False)
@@ -141,7 +219,11 @@ class Worker(Base):
 )
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+)
     name = Column(String(100))
     phone = Column(String(20))
     designation = Column(String(100))
@@ -166,10 +248,22 @@ class Attendance(Base):
     __tablename__ = "attendance"
 
     id = Column(Integer, primary_key=True)
-    worker_id = Column(Integer, ForeignKey("workers.id"))
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    worker_id = Column(
+    Integer,
+    ForeignKey("workers.id"),
+    index=True
+    )
+
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+    )
     attendance_date = Column(Date)
-    status = Column(String(20))
+    status = Column(
+    Enum(AttendanceStatusEnum),
+    nullable=False
+    )
     check_in = Column(String(20))
     check_out = Column(String(20))
 
@@ -198,13 +292,21 @@ class Procurement(Base):
 )
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+)
     material_name = Column(String(100))
     supplier = Column(String(100))
     quantity = Column(Integer)
     total_cost = Column(Float,nullable=False)
     purchase_date = Column(Date)
-    status = Column(String(30))
+    status = Column(
+    Enum(ProcurementStatusEnum),
+    default=ProcurementStatusEnum.Pending,
+    nullable=False
+    )
 
     project = relationship("Project", back_populates="procurements")
 
@@ -226,12 +328,19 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(
+    Integer,
+    ForeignKey("users.id"),
+    index=True
+    )
     title = Column(String(150))
     message = Column(Text)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-
+    type = Column(
+    Enum(NotificationTypeEnum),
+    default=NotificationTypeEnum.General
+   )
     user = relationship("User", back_populates="notifications")    
 
 
@@ -239,9 +348,20 @@ class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
-    generated_by = Column(Integer, ForeignKey("users.id"))
-    report_type = Column(String(50))
+    project_id = Column(
+    Integer,
+    ForeignKey("projects.id"),
+    index=True
+    )
+    generated_by = Column(
+    Integer,
+    ForeignKey("users.id"),
+    index=True
+    )
+    report_type = Column(
+    Enum(ReportTypeEnum),
+    nullable=False
+    )
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -251,3 +371,39 @@ class Report(Base):
 
 
 
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id"),
+        index=True
+    )
+
+    uploaded_by = Column(
+        Integer,
+        ForeignKey("users.id"),
+        index=True
+    )
+
+    file_name = Column(String(255), nullable=False)
+    file_type = Column(String(50))
+    file_path = Column(String(255))
+    description = Column(Text)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    project = relationship(
+        "Project",
+        back_populates="documents"
+    )
+
+    uploader = relationship(
+        "User",
+        back_populates="documents"
+    )

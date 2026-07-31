@@ -303,45 +303,22 @@ onSubmit(): void {
   this.submitted = true;
   this.error = '';
 
-<<<<<<< HEAD
+
   if (this.loginForm.invalid) {
     return;
-=======
-    if (this.loginForm.invalid) {
-      return;
-    }
 
-    this.isLoading = true;
-
-    const { email, password } = this.loginForm.value;
-    
-    this.authService.login(email, password).subscribe({
-      next: response => {
-          this.isLoading = false;
-          const role = response.user.role;
-          this.toastService.showSuccess(`Welcome back, ${response.user.name}.`);
-          this.redirectToDashboard(role);
-      },
-      error: (err: any) => {
-          this.isLoading = false;
-          this.error = err.error?.detail || 'Login failed. Please check credentials.';
-          this.toastService.showError(this.error);
-      }
-    });
->>>>>>> 471161618f1fcc8c3ac2404a743d1fb7371ffff6
   }
 
   this.isLoading = true;
 
   const { email, password, role } = this.loginForm.value;
 
-  this.authService.login(email, password,role).subscribe({
+  this.authService.login(email, password).subscribe({
     next: (response:any) => {
 
       this.isLoading = false;
 
-      // save role after login
-      localStorage.setItem('userRole', role);
+      
 
       this.toastService.showSuccess(
         `Welcome back! Logged in as ${role}.`
@@ -371,16 +348,12 @@ onSubmit(): void {
       this.isFacebookLoading = false;
       
       const email = `${provider.toLowerCase()}@buildtrack.com`;
-<<<<<<< HEAD
+
       const role = 'Project Manager'; // default PM dashboard access for social logins
       
       this.authService.login(email, 'password123',).subscribe({
         next: () => {
-=======
-      this.authService.login(email, 'password123').subscribe({
-        next: response => {
-          const role = response.user.role;
->>>>>>> 471161618f1fcc8c3ac2404a743d1fb7371ffff6
+
           this.toastService.showSuccess(`Successfully authenticated via ${provider}!`);
           this.redirectToDashboard(role);
         },

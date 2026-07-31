@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.database import engine
+from app.database import Base,engine
 from app import models
 
 
@@ -19,7 +19,11 @@ from app.routes import (
     attendance,
     procurements,
     notifications,
-    reports
+    reports,
+    documents,
+     dashboard,
+    
+    
 )
 
 
@@ -69,3 +73,5 @@ app.include_router(attendance.router)
 app.include_router(procurements.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
+app.include_router(documents.router)
+app.include_router(dashboard.router)
