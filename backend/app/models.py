@@ -288,25 +288,30 @@ updated_at = Column(
 class Procurement(Base):
     __tablename__ = "procurements"
     __table_args__ = (
-    CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
-)
+        CheckConstraint("total_cost >= 0", name="check_total_cost_positive"),
+    )
 
     id = Column(Integer, primary_key=True)
     project_id = Column(
-    Integer,
-    ForeignKey("projects.id"),
-    index=True
-)
+        Integer,
+        ForeignKey("projects.id"),
+        index=True
+    )
     material_name = Column(String(100))
+    category = Column(String(50), default="Raw Materials")
     supplier = Column(String(100))
+    vendor_contact = Column(String(50), nullable=True)
+    invoice_number = Column(String(50), nullable=True)
+    payment_status = Column(String(30), default="Pending")
     quantity = Column(Integer)
-    total_cost = Column(Float,nullable=False)
+    total_cost = Column(Float, nullable=False)
     purchase_date = Column(Date)
     status = Column(
-    Enum(ProcurementStatusEnum),
-    default=ProcurementStatusEnum.Pending,
-    nullable=False
+        Enum(ProcurementStatusEnum),
+        default=ProcurementStatusEnum.Pending,
+        nullable=False
     )
+
 
     project = relationship("Project", back_populates="procurements")
 

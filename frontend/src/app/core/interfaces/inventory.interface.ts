@@ -7,6 +7,13 @@ export type MaterialCategory =
   | 'Electrical Materials'
   | 'Plumbing Materials';
 
+export type ProcurementCategory =
+  | 'Raw Materials'
+  | 'Equipment'
+  | 'Machinery'
+  | 'Safety Equipment'
+  | 'Office Supplies';
+
 export interface Material {
   id: number;
   name: string;
@@ -35,7 +42,11 @@ export interface MaterialProcurement {
   id: number;
   projectId: number;
   materialName: string;
+  category?: ProcurementCategory | string;
   supplier: string;
+  vendorContact?: string;
+  invoiceNumber?: string;
+  paymentStatus?: 'Pending' | 'Paid' | 'Unpaid' | string;
   quantity: number;
   totalCost: number;
   purchaseDate: string;

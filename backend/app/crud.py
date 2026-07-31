@@ -584,7 +584,11 @@ def create_procurement(db: Session, procurement: schemas.ProcurementCreate):
     db_procurement = models.Procurement(
         project_id=procurement.project_id,
         material_name=procurement.material_name,
+        category=getattr(procurement, 'category', 'Raw Materials') or 'Raw Materials',
         supplier=procurement.supplier,
+        vendor_contact=getattr(procurement, 'vendor_contact', None),
+        invoice_number=getattr(procurement, 'invoice_number', None),
+        payment_status=getattr(procurement, 'payment_status', 'Pending') or 'Pending',
         quantity=procurement.quantity,
         total_cost=procurement.total_cost,
         purchase_date=procurement.purchase_date,
@@ -596,6 +600,7 @@ def create_procurement(db: Session, procurement: schemas.ProcurementCreate):
     db.refresh(db_procurement)
 
     return db_procurement
+
 
 def get_procurements(
     db: Session,

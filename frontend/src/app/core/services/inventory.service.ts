@@ -19,12 +19,17 @@ export interface ApiProcurement {
   id: number;
   project_id: number;
   material_name: string;
+  category?: string;
   supplier: string;
+  vendor_contact?: string;
+  invoice_number?: string;
+  payment_status?: string;
   quantity: number;
   total_cost: number;
   purchase_date: string;
   status: string;
 }
+
 
 @Injectable({
   providedIn: 'root'
@@ -131,17 +136,21 @@ export class InventoryService {
     );
   }
 
-  createRequest(request: { item: string; qty: string; project: string; requestedBy: string; requiredDate?: string; vendor?: string }): Observable<MaterialRequest> {
+  createRequest(request: { item: string; category?: string; qty: string; project?: string; projectId?: number; requestedBy: string; requiredDate?: string; vendor?: string; vendorContact?: string; invoiceNumber?: string; totalCost?: number }): Observable<MaterialRequest> {
     const qtyMatch = request.qty.match(/\d+/);
     const quantity = qtyMatch ? parseInt(qtyMatch[0], 10) : 100;
     const today = new Date().toISOString().split('T')[0];
 
     const payload = {
-      project_id: 1,
+      project_id: request.projectId || 1,
       material_name: request.item,
+      category: request.category || 'Raw Materials',
       supplier: request.vendor || 'Primary Supplier',
+      vendor_contact: request.vendorContact || null,
+      invoice_number: request.invoiceNumber || `INV-${Date.now().toString().slice(-6)}`,
+      payment_status: 'Pending',
       quantity,
-      total_cost: quantity * 50,
+      total_cost: request.totalCost || (quantity * 50),
       status: 'Pending',
       purchase_date: request.requiredDate || today
     };
@@ -169,7 +178,11 @@ export class InventoryService {
         id: p.id,
         projectId: p.project_id,
         materialName: p.material_name,
+        category: (p.category || 'Raw Materials') as MaterialProcurement['category'],
         supplier: p.supplier,
+        vendorContact: p.vendor_contact || 'N/A',
+        invoiceNumber: p.invoice_number || `INV-00${p.id}`,
+        paymentStatus: (p.payment_status || 'Pending') as MaterialProcurement['paymentStatus'],
         quantity: p.quantity,
         totalCost: p.total_cost,
         purchaseDate: p.purchase_date,
@@ -179,6 +192,7 @@ export class InventoryService {
       catchError(() => of([]))
     );
   }
+
 
   private toMaterial(item: ApiInventory): Material {
     const capacityLimit = Math.max((item.minimum_stock || 10) * 5, item.quantity, 100);

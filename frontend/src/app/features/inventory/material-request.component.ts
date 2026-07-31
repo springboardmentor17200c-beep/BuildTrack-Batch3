@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { InventoryService } from '../../core/services/inventory.service';
 import { ProjectService } from '../../core/services/project.service';
 import { ToastService } from '../../core/services/toast.service';
-import { MaterialRequest } from '../../core/interfaces/inventory.interface';
+import { MaterialRequest, MaterialProcurement } from '../../core/interfaces/inventory.interface';
 
 @Component({
   selector: 'app-material-request',
@@ -18,26 +18,38 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
       <div class="col-12 col-lg-5">
         <div class="border border-secondary border-opacity-10 rounded p-4 bg-white shadow-sm">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0 text-slate-800">Requisition Request</h5>
+            <h5 class="fw-bold mb-0 text-slate-800">Procurement Requisition & Purchase Order</h5>
             <mat-icon class="text-warning">local_shipping</mat-icon>
           </div>
 
           <form [formGroup]="requestForm" (ngSubmit)="onRequest()">
+            <!-- Procurement Category -->
+            <div class="mb-3">
+              <label class="bt-form-label">Procurement Category</label>
+              <select class="form-select bt-form-control" formControlName="category">
+                <option value="Raw Materials">Raw Materials (Cement, Steel, Sand, etc.)</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Machinery">Machinery</option>
+                <option value="Safety Equipment">Safety Equipment</option>
+                <option value="Office Supplies">Office Supplies</option>
+              </select>
+            </div>
+
             <!-- Item Name -->
             <div class="mb-3">
               <label class="bt-form-label">Material / Item Name</label>
-              <input type="text" class="form-control bt-form-control" formControlName="item" placeholder="e.g. Portland Cement"
+              <input type="text" class="form-control bt-form-control" formControlName="item" placeholder="e.g. Portland Cement / Safety Helmets"
                      [class.is-invalid]="submitted && f['item'].errors">
               <div *ngIf="submitted && f['item'].errors" class="invalid-feedback text-xs">
                 <span>Material item is required</span>
               </div>
             </div>
 
-            <!-- Qty -->
+            <!-- Qty & Site Project -->
             <div class="row mb-3 g-2">
               <div class="col-6">
                 <label class="bt-form-label">Quantity Needed</label>
-                <input type="text" class="form-control bt-form-control" formControlName="qty" placeholder="e.g. 500 Bags"
+                <input type="text" class="form-control bt-form-control" formControlName="qty" placeholder="e.g. 500 Bags / 20 Units"
                        [class.is-invalid]="submitted && f['qty'].errors">
                 <div *ngIf="submitted && f['qty'].errors" class="invalid-feedback text-xs">
                   <span>Quantity is required</span>
@@ -52,18 +64,24 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
               </div>
             </div>
 
-            <!-- Requested By -->
-            <div class="mb-3">
-              <label class="bt-form-label">Requested By</label>
-              <input type="text" class="form-control bt-form-control" formControlName="requestedBy" placeholder="e.g. Marcus Vance"
-                     [class.is-invalid]="submitted && f['requestedBy'].errors">
-              <div *ngIf="submitted && f['requestedBy'].errors" class="invalid-feedback text-xs">
-                <span>Requester name is required</span>
+            <!-- Vendor / Supplier Management & Contact -->
+            <div class="row mb-3 g-2">
+              <div class="col-6">
+                <label class="bt-form-label">Preferred Supplier</label>
+                <input type="text" class="form-control bt-form-control" formControlName="vendor" placeholder="e.g. Apex ReadyMix Ltd">
+              </div>
+              <div class="col-6">
+                <label class="bt-form-label">Vendor Contact Phone/Email</label>
+                <input type="text" class="form-control bt-form-control" formControlName="vendorContact" placeholder="e.g. +1 555-0199">
               </div>
             </div>
 
-            <!-- Required Date & Vendor -->
+            <!-- Invoice Tracking & Date -->
             <div class="row mb-3 g-2">
+              <div class="col-6">
+                <label class="bt-form-label">Invoice Number</label>
+                <input type="text" class="form-control bt-form-control" formControlName="invoiceNumber" placeholder="e.g. INV-2026-001">
+              </div>
               <div class="col-6">
                 <label class="bt-form-label">Required Date</label>
                 <input type="date" class="form-control bt-form-control" formControlName="requiredDate"
@@ -72,17 +90,22 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
                   <span>Required date is mandatory</span>
                 </div>
               </div>
-              
-              <div class="col-6">
-                <label class="bt-form-label">Preferred Supplier</label>
-                <input type="text" class="form-control bt-form-control" formControlName="vendor" placeholder="e.g. Apex ReadyMix">
+            </div>
+
+            <!-- Requested By -->
+            <div class="mb-3">
+              <label class="bt-form-label">Requested By</label>
+              <input type="text" class="form-control bt-form-control" formControlName="requestedBy" placeholder="e.g. Marcus Vance (Site Inspector)"
+                     [class.is-invalid]="submitted && f['requestedBy'].errors">
+              <div *ngIf="submitted && f['requestedBy'].errors" class="invalid-feedback text-xs">
+                <span>Requester name is required</span>
               </div>
             </div>
 
             <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 d-flex align-items-center justify-content-center gap-2" [disabled]="isLoading">
               <span *ngIf="isLoading" class="spinner-border spinner-border-sm" role="status"></span>
               <mat-icon *ngIf="!isLoading">shopping_cart</mat-icon>
-              <span>Submit Request</span>
+              <span>Submit Requisition Order</span>
             </button>
           </form>
         </div>
@@ -92,55 +115,70 @@ import { MaterialRequest } from '../../core/interfaces/inventory.interface';
       <div class="col-12 col-lg-7">
         <div class="border border-secondary border-opacity-10 rounded p-4 bg-white shadow-sm h-100">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0 text-slate-800">Requisitions & Purchase Requests</h5>
-            <span class="badge bg-light text-dark border border-secondary border-opacity-10 text-xs">Order Queue</span>
+            <h5 class="fw-bold mb-0 text-slate-800">Procurement & Invoice Tracking Ledger</h5>
+            <span class="badge bg-light text-dark border border-secondary border-opacity-10 text-xs">PO Queue</span>
           </div>
 
           <div class="table-responsive">
             <table class="table align-middle text-sm mb-0">
               <thead class="table-light text-muted uppercase text-xs">
                 <tr>
-                  <th>Item Name</th>
+                  <th>Item & Category</th>
+                  <th>Invoice #</th>
+                  <th>Supplier & Contact</th>
                   <th>Quantity</th>
-                  <th>Site Project</th>
-                  <th>Req. Date</th>
                   <th>Status</th>
                   <th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let req of requests">
+                <tr *ngFor="let po of procurements">
                   <td>
                     <div class="d-flex align-items-center gap-2">
-                      <mat-icon class="text-slate-500">assignment</mat-icon>
-                      <span class="fw-semibold text-slate-800">{{ req.item }}</span>
+                      <mat-icon class="text-primary">assignment</mat-icon>
+                      <div class="d-flex flex-column">
+                        <span class="fw-semibold text-slate-800">{{ po.materialName }}</span>
+                        <span class="badge bg-light text-dark text-xxs border border-secondary border-opacity-10 w-auto d-inline-block mt-0.5">
+                          {{ po.category || 'Raw Materials' }}
+                        </span>
+                      </div>
                     </div>
                   </td>
-                  <td>{{ req.qty }}</td>
-                  <td>{{ req.project }}</td>
-                  <td>{{ req.requiredDate || 'N/A' }}</td>
+                  <td>
+                    <div class="d-flex flex-column">
+                      <span class="fw-semibold text-xs text-dark">{{ po.invoiceNumber || 'INV-00' + po.id }}</span>
+                      <span class="text-xxs text-muted">Payment: {{ po.paymentStatus || 'Pending' }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex flex-column">
+                      <span class="text-xs fw-semibold">{{ po.supplier }}</span>
+                      <span class="text-xxs text-muted">{{ po.vendorContact || 'N/A' }}</span>
+                    </div>
+                  </td>
+                  <td>{{ po.quantity }} Units</td>
                   <td>
                     <span class="bt-badge text-xxs" 
-                          [class.bt-badge-success]="req.status === 'Approved'" 
-                          [class.bt-badge-warning]="req.status === 'Pending'" 
-                          [class.bt-badge-danger]="req.status === 'Rejected'">
-                      {{ req.status }}
+                          [class.bt-badge-success]="po.status === 'Approved'" 
+                          [class.bt-badge-warning]="po.status === 'Pending'" 
+                          [class.bt-badge-danger]="po.status === 'Rejected'">
+                      {{ po.status }}
                     </span>
                   </td>
                   <td class="text-end">
-                    <div class="d-flex justify-content-end gap-1" *ngIf="req.status === 'Pending'">
-                      <button class="btn btn-xs btn-outline-success py-0 px-2 text-xxs" (click)="updateStatus(req.id, 'Approved')">
+                    <div class="d-flex justify-content-end gap-1" *ngIf="po.status === 'Pending'">
+                      <button class="btn btn-xs btn-outline-success py-0 px-2 text-xxs" (click)="updateStatus(po.id, 'Approved')">
                         Approve
                       </button>
-                      <button class="btn btn-xs btn-outline-danger py-0 px-2 text-xxs" (click)="updateStatus(req.id, 'Rejected')">
+                      <button class="btn btn-xs btn-outline-danger py-0 px-2 text-xxs" (click)="updateStatus(po.id, 'Rejected')">
                         Reject
                       </button>
                     </div>
-                    <span *ngIf="req.status !== 'Pending'" class="text-muted text-xxs">—</span>
+                    <span *ngIf="po.status !== 'Pending'" class="text-muted text-xxs">—</span>
                   </td>
                 </tr>
-                <tr *ngIf="requests.length === 0">
-                  <td colspan="6" class="text-center py-4 text-muted">No request logs recorded.</td>
+                <tr *ngIf="procurements.length === 0">
+                  <td colspan="6" class="text-center py-4 text-muted">No purchase orders recorded.</td>
                 </tr>
               </tbody>
             </table>
@@ -159,12 +197,10 @@ export class MaterialRequestComponent implements OnInit {
   requestForm!: FormGroup;
   submitted = false;
   isLoading = false;
-  requests: MaterialRequest[] = [];
+  procurements: MaterialProcurement[] = [];
   projects: { id: number; name: string }[] = [
-    { id: 1, name: 'Metropolitan Commercial Plaza' },
-    { id: 2, name: 'Riverside Residential Township' },
-    { id: 3, name: 'Industrial Cold Storage Unit' },
-    { id: 4, name: 'State Highway Bypass Route' }
+    { id: 1, name: 'Oakridge housing' },
+    { id: 2, name: 'SVS housing' }
   ];
 
   constructor(
@@ -175,20 +211,26 @@ export class MaterialRequestComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const defaultInv = `INV-${Date.now().toString().slice(-6)}`;
+
     this.requestForm = this.formBuilder.group({
+      category: ['Raw Materials', Validators.required],
       item: ['', Validators.required],
       qty: ['', Validators.required],
-      project: [this.projects[0]?.name || '', Validators.required],
-      requestedBy: ['', Validators.required],
-      requiredDate: ['', Validators.required],
-      vendor: ['']
+      project: [this.projects[0]?.name || 'Oakridge housing', Validators.required],
+      vendor: ['Apex ReadyMix Ltd', Validators.required],
+      vendorContact: ['+1 555-0199'],
+      invoiceNumber: [defaultInv, Validators.required],
+      requestedBy: ['Marcus Vance', Validators.required],
+      requiredDate: [todayStr, Validators.required]
     });
     this.loadData();
   }
 
   loadData(): void {
-    this.inventoryService.getRequests().subscribe(list => {
-      this.requests = list;
+    this.inventoryService.getProcurements().subscribe(list => {
+      this.procurements = list;
     });
     this.projectService.getProjects().subscribe({
       next: (projList) => {
@@ -212,24 +254,41 @@ export class MaterialRequestComponent implements OnInit {
     this.isLoading = true;
     const formVal = this.requestForm.value;
 
-    this.inventoryService.createRequest(formVal).subscribe({
+    const selectedProj = this.projects.find(p => p.name === formVal.project);
+
+    this.inventoryService.createRequest({
+      item: formVal.item,
+      category: formVal.category,
+      qty: formVal.qty,
+      project: formVal.project,
+      projectId: selectedProj ? selectedProj.id : 1,
+      requestedBy: formVal.requestedBy,
+      requiredDate: formVal.requiredDate,
+      vendor: formVal.vendor,
+      vendorContact: formVal.vendorContact,
+      invoiceNumber: formVal.invoiceNumber
+    }).subscribe({
       next: () => {
         this.isLoading = false;
-        this.toastService.showSuccess('Material requisition order request dispatched successfully.');
+        this.toastService.showSuccess('Purchase requisition order dispatched successfully!');
+        const defaultInv = `INV-${Date.now().toString().slice(-6)}`;
         this.requestForm.reset({
+          category: 'Raw Materials',
           item: '',
           qty: '',
-          project: this.projects[0]?.name || 'Metropolitan Commercial Plaza',
-          requestedBy: '',
-          requiredDate: '',
-          vendor: ''
+          project: this.projects[0]?.name || 'Oakridge housing',
+          vendor: 'Apex ReadyMix Ltd',
+          vendorContact: '+1 555-0199',
+          invoiceNumber: defaultInv,
+          requestedBy: 'Marcus Vance',
+          requiredDate: new Date().toISOString().split('T')[0]
         });
         this.submitted = false;
         this.loadData();
       },
       error: () => {
         this.isLoading = false;
-        this.toastService.showError('Failed to dispatch requisition order.');
+        this.toastService.showError('Failed to dispatch purchase requisition order.');
       }
     });
   }
@@ -237,13 +296,11 @@ export class MaterialRequestComponent implements OnInit {
   updateStatus(id: number, status: 'Approved' | 'Rejected'): void {
     this.inventoryService.updateRequestStatus(id, status).subscribe({
       next: (updated) => {
-        if (updated) {
-          this.toastService.showSuccess(`Requisition request set to ${status}.`);
-          this.loadData();
-        }
+        this.toastService.showSuccess(`Purchase order requisition set to ${status}.`);
+        this.loadData();
       },
       error: () => {
-        this.toastService.showError('Failed to update requisition status.');
+        this.toastService.showError('Failed to update purchase order status.');
       }
     });
   }

@@ -157,7 +157,11 @@ class AttendanceUpdate(BaseModel):
 class ProcurementCreate(BaseModel):
     project_id: int
     material_name: str
+    category: Optional[str] = "Raw Materials"
     supplier: str
+    vendor_contact: Optional[str] = None
+    invoice_number: Optional[str] = None
+    payment_status: Optional[str] = "Pending"
     quantity: int = Field(gt=0)
     total_cost: float = Field(gt=0)
     status: str = "Pending"
@@ -166,11 +170,16 @@ class ProcurementCreate(BaseModel):
 
 class ProcurementUpdate(BaseModel):
     material_name: Optional[str] = None
+    category: Optional[str] = None
     supplier: Optional[str] = None
+    vendor_contact: Optional[str] = None
+    invoice_number: Optional[str] = None
+    payment_status: Optional[str] = None
     quantity: Optional[int] = None
     total_cost: Optional[float] = None
     status: Optional[str] = None
     purchase_date: Optional[date] = None
+
 
 
 
