@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
+import enum
+
+
+class NotificationType(str, enum.Enum):
+    PROJECT_UPDATE = "Project Update"
+    TASK_ASSIGNMENT = "Task Assignment"
+    PROCUREMENT_ALERT = "Procurement Alert"
+    ATTENDANCE_ALERT = "Attendance Alert"
+    DEADLINE_NOTIFICATION = "Deadline Notification"
+    SYSTEM_NOTIFICATION = "System Notification"
 
 
 class User(Base):
@@ -105,6 +115,11 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    notification_type = Column(
+        SAEnum(NotificationType, name="notificationtype"),
+        nullable=False,
+        default=NotificationType.SYSTEM_NOTIFICATION
+    )
     title = Column(String(150))
     message = Column(Text)
     is_read = Column(Boolean, default=False)

@@ -2,9 +2,18 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export type NotificationType =
+  | 'Project Update'
+  | 'Task Assignment'
+  | 'Procurement Alert'
+  | 'Attendance Alert'
+  | 'Deadline Notification'
+  | 'System Notification';
+
 export interface Notification {
   id: number;
   user_id: number;
+  notification_type: NotificationType;
   title: string;
   message: string;
   is_read: boolean;

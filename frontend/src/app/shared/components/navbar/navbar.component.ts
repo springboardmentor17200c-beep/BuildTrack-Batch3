@@ -51,7 +51,7 @@ import { NotificationService, Notification } from '../../../core/services/notifi
               class="d-flex align-items-start gap-2 border-bottom py-2 px-3"
               [class.bg-light]="!note.is_read"
               style="width: 300px; cursor: default;">
-              <mat-icon [class]="note.is_read ? 'text-muted' : 'text-primary'" style="flex-shrink: 0;">notifications</mat-icon>
+              <mat-icon [class]="note.is_read ? 'text-muted' : getNotificationClass(note.notification_type)" style="flex-shrink: 0;">{{ getNotificationIcon(note.notification_type) }}</mat-icon>
               <div class="d-flex flex-column flex-grow-1" style="min-width: 0;">
                 <span class="fw-medium text-dark" style="font-size: 0.82rem; line-height: 1.3;">{{ note.title }}</span>
                 <span class="text-muted" style="font-size: 0.75rem; white-space: normal;">{{ note.message }}</span>
@@ -202,19 +202,25 @@ export class NavbarComponent implements OnInit {
 
   getNotificationIcon(type: string): string {
     switch (type) {
-      case 'success': return 'check_circle';
-      case 'warning': return 'warning';
-      case 'danger': return 'error';
-      default: return 'info';
+      case 'Project Update':        return 'update';
+      case 'Task Assignment':       return 'assignment';
+      case 'Procurement Alert':     return 'shopping_cart';
+      case 'Attendance Alert':      return 'event_available';
+      case 'Deadline Notification': return 'alarm';
+      case 'System Notification':   return 'info';
+      default:                      return 'notifications';
     }
   }
 
   getNotificationClass(type: string): string {
     switch (type) {
-      case 'success': return 'text-success';
-      case 'warning': return 'text-warning';
-      case 'danger': return 'text-danger';
-      default: return 'text-info';
+      case 'Project Update':        return 'text-primary';
+      case 'Task Assignment':       return 'text-info';
+      case 'Procurement Alert':     return 'text-warning';
+      case 'Attendance Alert':      return 'text-success';
+      case 'Deadline Notification': return 'text-danger';
+      case 'System Notification':   return 'text-secondary';
+      default:                      return 'text-muted';
     }
   }
 

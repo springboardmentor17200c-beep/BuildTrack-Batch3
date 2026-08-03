@@ -110,7 +110,12 @@ def get_procurements(db: Session):
 
 
 def create_notification(db: Session, notification: schemas.NotificationCreate):
-    db_notification = models.Notification(**notification.model_dump())
+    db_notification = models.Notification(
+        user_id=notification.user_id,
+        notification_type=notification.notification_type,
+        title=notification.title,
+        message=notification.message
+    )
     db.add(db_notification)
     db.commit()
     db.refresh(db_notification)
@@ -145,6 +150,15 @@ def mark_notification_read(db: Session, notification_id: int):
     db_notification.is_read = True
     db.commit()
     db.refresh(db_notification)
+    return db_notification
+
+
+def delete_notification(db: Session, notification_id: int):
+    db_notification = get_notification(db, notification_id)
+    if not db_notification:
+        return None
+    db.delete(db_notification)
+    db.commit()
     return db_notification
 
 

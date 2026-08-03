@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
+from enum import Enum
 
 
 # ---------------- USERS ----------------
@@ -97,10 +98,33 @@ class ProcurementCreate(BaseModel):
 
 # ---------------- NOTIFICATIONS ----------------
 
+class NotificationType(str, Enum):
+    PROJECT_UPDATE = "Project Update"
+    TASK_ASSIGNMENT = "Task Assignment"
+    PROCUREMENT_ALERT = "Procurement Alert"
+    ATTENDANCE_ALERT = "Attendance Alert"
+    DEADLINE_NOTIFICATION = "Deadline Notification"
+    SYSTEM_NOTIFICATION = "System Notification"
+
+
 class NotificationCreate(BaseModel):
     user_id: int
+    notification_type: NotificationType = NotificationType.SYSTEM_NOTIFICATION
     title: str
     message: str
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    notification_type: NotificationType
+    title: str
+    message: str
+    is_read: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ---------------- REPORTS ----------------
