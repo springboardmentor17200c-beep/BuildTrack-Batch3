@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+﻿import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatMenuModule } from '@angular/material/menu';
@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { AuthService, User } from '../../../core/services/auth.service';
+import { NotificationService, Notification } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-navbar',
@@ -37,22 +38,39 @@ import { AuthService, User } from '../../../core/services/auth.service';
         <!-- Right Elements -->
         <div class="d-flex align-items-center gap-3" *ngIf="currentUser">
           <!-- Notification Bell -->
-          <button mat-icon-button [matMenuTriggerFor]="notificationMenu" class="text-white position-relative">
-            <mat-icon [matBadge]="notifications.length" matBadgeColor="warn" [matBadgeHidden]="notifications.length === 0">notifications</mat-icon>
+          <button mat-icon-button [matMenuTriggerFor]="notificationMenu" class="text-white position-relative" (click)="loadNotifications()">
+            <mat-icon [matBadge]="unreadCount" matBadgeColor="warn" [matBadgeHidden]="unreadCount === 0">notifications</mat-icon>
           </button>
           
           <mat-menu #notificationMenu="matMenu" class="notification-dropdown">
             <h6 class="dropdown-header px-3 py-2 border-bottom fw-bold text-dark">Notifications</h6>
-            <div *ngIf="notifications.length === 0" class="p-3 text-center text-muted" style="width: 250px;">
+            <div *ngIf="notifications.length === 0" class="p-3 text-center text-muted" style="width: 280px;">
               No new alerts
             </div>
-            <button mat-menu-item *ngFor="let note of notifications" class="d-flex align-items-start gap-2 border-bottom py-2">
-              <mat-icon [class]="getNotificationClass(note.type)">{{ getNotificationIcon(note.type) }}</mat-icon>
-              <div class="d-flex flex-column text-wrap" style="width: 200px;">
-                <span class="fw-medium text-dark text-xs" style="line-height: 1.2;">{{ note.message }}</span>
-                <span class="text-muted text-xs mt-1" style="font-size: 0.75rem;">{{ note.time }}</span>
+            <div *ngFor="let note of notifications"
+              class="d-flex align-items-start gap-2 border-bottom py-2 px-3"
+              [class.bg-light]="!note.is_read"
+              style="width: 300px; cursor: default;">
+              <mat-icon [class]="note.is_read ? 'text-muted' : 'text-primary'" style="flex-shrink: 0;">notifications</mat-icon>
+              <div class="d-flex flex-column flex-grow-1" style="min-width: 0;">
+                <span class="fw-medium text-dark" style="font-size: 0.82rem; line-height: 1.3;">{{ note.title }}</span>
+                <span class="text-muted" style="font-size: 0.75rem; white-space: normal;">{{ note.message }}</span>
+                <span class="text-muted" style="font-size: 0.7rem; margin-top: 2px;">{{ note.created_at | date:'short' }}</span>
               </div>
-            </button>
+              <button *ngIf="!note.is_read"
+                mat-icon-button
+                class="text-success"
+                style="flex-shrink: 0; width: 28px; height: 28px; line-height: 28px;"
+                (click)="markAsRead(note, $event)"
+                title="Mark as read">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">done</mat-icon>
+              </button>
+            </div>
+            <div *ngIf="unreadCount > 0" class="px-3 py-2 text-center border-top">
+              <button mat-button color="primary" style="font-size: 0.8rem;" (click)="markAllAsRead($event)">
+                Mark all as read
+              </button>
+            </div>
           </mat-menu>
 
           <!-- Quick Role Switcher (Excellent evaluation feature!) -->
@@ -123,19 +141,57 @@ export class NavbarComponent implements OnInit {
 
   currentUser: User | null = null;
   avatarInitials = '';
-  notifications = [
-    { id: 1, message: 'Concrete Mixer Maintenance Overdue', type: 'warning', time: '10m ago' },
-    { id: 2, message: 'Foundation phase completed on Site B', type: 'success', time: '1h ago' },
-    { id: 3, message: 'New material request from Marcus (Contractor)', type: 'info', time: '3h ago' },
-    { id: 4, message: 'Budget alert: Site C overhead exceeded by 5%', type: 'danger', time: '1d ago' }
-  ];
+  notifications: Notification[] = [];
+  unreadCount = 0;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.avatarInitials = user ? this.calculateInitials(user.name) : '';
+      if (user) {
+        this.loadNotifications();
+      }
+    });
+  }
+
+  loadNotifications(): void {
+    this.notificationService.getNotifications().subscribe({
+      next: (data) => {
+        this.notifications = data;
+        this.unreadCount = data.filter(n => !n.is_read).length;
+      },
+      error: () => {
+        // silently fail — don't break the navbar if notifications API is down
+      }
+    });
+  }
+
+  markAsRead(note: Notification, event: Event): void {
+    event.stopPropagation();
+    this.notificationService.markAsRead(note.id).subscribe({
+      next: () => {
+        note.is_read = true;
+        this.unreadCount = this.notifications.filter(n => !n.is_read).length;
+      }
+    });
+  }
+
+  markAllAsRead(event: Event): void {
+    event.stopPropagation();
+    const unread = this.notifications.filter(n => !n.is_read);
+    unread.forEach(note => {
+      this.notificationService.markAsRead(note.id).subscribe({
+        next: () => {
+          note.is_read = true;
+          this.unreadCount = this.notifications.filter(n => !n.is_read).length;
+        }
+      });
     });
   }
 

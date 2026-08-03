@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+﻿from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import hash_password
 
@@ -119,6 +119,33 @@ def create_notification(db: Session, notification: schemas.NotificationCreate):
 
 def get_notifications(db: Session):
     return db.query(models.Notification).all()
+
+
+def get_notifications_by_user(db: Session, user_id: int):
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == user_id)
+        .order_by(models.Notification.created_at.desc())
+        .all()
+    )
+
+
+def get_notification(db: Session, notification_id: int):
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.id == notification_id)
+        .first()
+    )
+
+
+def mark_notification_read(db: Session, notification_id: int):
+    db_notification = get_notification(db, notification_id)
+    if not db_notification:
+        return None
+    db_notification.is_read = True
+    db.commit()
+    db.refresh(db_notification)
+    return db_notification
 
 
 def create_report(db: Session, report: schemas.ReportCreate):
