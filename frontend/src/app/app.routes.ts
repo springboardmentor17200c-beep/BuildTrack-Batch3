@@ -14,6 +14,10 @@ import { ResourceManagementComponent } from './features/resources/resource-manag
 import { InventoryComponent } from './features/inventory/inventory.component';
 import { WorkforceComponent } from './features/workforce/workforce.component';
 import { AnalyticsComponent } from './features/analytics/analytics.component';
+import { ProcurementComponent } from './features/procurement/procurement.component';
+import { NotificationsComponent } from './features/notifications/notifications.component';
+import { ReportsComponent } from './features/reports/reports.component';
+import { DocumentsComponent } from './features/documents/documents.component';
 import { AuthGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -77,6 +81,11 @@ export const routes: Routes = [
         data: { roles: ['Admin', 'Project Manager', 'Contractor'] } 
       },
       { 
+        path: 'procurement', 
+        component: ProcurementComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Contractor'] } 
+      },
+      { 
         path: 'workforce', 
         component: WorkforceComponent, 
         data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Worker'] } 
@@ -85,6 +94,21 @@ export const routes: Routes = [
         path: 'attendance',
         redirectTo: 'workforce',
         pathMatch: 'full'
+      },
+      { 
+        path: 'notifications', 
+        component: NotificationsComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker'] } 
+      },
+      { 
+        path: 'reports', 
+        component: ReportsComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client'] } 
+      },
+      { 
+        path: 'documents', 
+        component: DocumentsComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker'] } 
       },
       { 
         path: 'analytics', 

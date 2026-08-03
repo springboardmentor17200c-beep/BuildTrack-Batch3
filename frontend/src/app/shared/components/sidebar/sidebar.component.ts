@@ -199,7 +199,11 @@ export class SidebarComponent implements OnInit {
       projects: { label: 'Projects', route: '/projects', icon: 'business' },
       resources: { label: 'Resources', route: '/resources', icon: 'handyman' },
       inventory: { label: 'Inventory', route: '/inventory', icon: 'inventory_2' },
+      procurement: { label: 'Procurement', route: '/procurement', icon: 'receipt_long' },
       attendance: { label: 'Workforce', route: '/workforce', icon: 'badge' },
+      notifications: { label: 'Notifications', route: '/notifications', icon: 'notifications' },
+      reports: { label: 'Reports', route: '/reports', icon: 'picture_as_pdf' },
+      documents: { label: 'Documents', route: '/documents', icon: 'folder' },
       analytics: { label: 'Analytics', route: '/analytics', icon: 'analytics' }
     };
 
@@ -209,7 +213,11 @@ export class SidebarComponent implements OnInit {
           allItems['projects'],
           allItems['resources'],
           allItems['inventory'],
+          allItems['procurement'],
           allItems['attendance'],
+          allItems['notifications'],
+          allItems['reports'],
+          allItems['documents'],
           allItems['analytics']
         ];
       case 'Project Manager':
@@ -217,22 +225,35 @@ export class SidebarComponent implements OnInit {
           allItems['projects'],
           allItems['resources'],
           allItems['inventory'],
+          allItems['procurement'],
           allItems['attendance'],
+          allItems['notifications'],
+          allItems['reports'],
+          allItems['documents'],
           allItems['analytics']
         ];
       case 'Site Engineer':
         return [
           allItems['projects'],
-          allItems['attendance']
+          allItems['attendance'],
+          allItems['notifications'],
+          allItems['reports'],
+          allItems['documents']
         ];
       case 'Contractor':
         return [
           allItems['resources'],
-          allItems['inventory']
+          allItems['inventory'],
+          allItems['procurement'],
+          allItems['notifications'],
+          allItems['reports'],
+          allItems['documents']
         ];
       case 'Client':
         return [
           allItems['projects'],
+          allItems['reports'],
+          allItems['documents'],
           allItems['analytics']
         ];
       case 'Worker':
