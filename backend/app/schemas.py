@@ -12,7 +12,44 @@ class AttendanceStatus(str, Enum):
     Present = "Present"
     Absent = "Absent"
     OnLeave = "On Leave"
+from enum import Enum
 
+# ---------------- PROCUREMENT ENUMS ----------------
+
+class RequestStatus(str, Enum):
+    Pending = "Pending"
+    Approved = "Approved"
+    Rejected = "Rejected"
+
+
+class PriorityLevel(str, Enum):
+    Low = "Low"
+    Medium = "Medium"
+    High = "High"
+
+
+class VendorStatus(str, Enum):
+    Active = "Active"
+    Inactive = "Inactive"
+
+
+class PurchaseOrderStatus(str, Enum):
+    Created = "Created"
+    Sent = "Sent"
+    Accepted = "Accepted"
+    Delivered = "Delivered"
+
+
+class DeliveryStatus(str, Enum):
+    Received = "Received"
+    PartiallyReceived = "Partially Received"
+    Rejected = "Rejected"
+
+
+class PaymentStatus(str, Enum):
+    Pending = "Pending"
+    Approved = "Approved"
+    Paid = "Paid"
 
 # ---------------- USERS ----------------
 
@@ -143,12 +180,11 @@ class AttendanceCreate(BaseModel):
     check_in: str
     check_out: str = ""
 
-class AttendanceUpdate(AttendanceCreate):
-    pass
+
 
 class AttendanceUpdate(BaseModel):
     attendance_date: Optional[date] = None
-    status: Optional[ProjectStatus] = None
+    status: Optional[AttendanceStatus] = None
     check_in: Optional[str] = None
     check_out: Optional[str] = None
 
@@ -223,3 +259,134 @@ class DocumentCreate(BaseModel):
 class DocumentUpdate(BaseModel):
     file_name: str | None = None
     description: str | None = None
+
+
+
+# ---------------- VENDORS ----------------
+
+class VendorCreate(BaseModel):
+    project_id: int
+    vendor_name: str
+    contact_person: str
+    phone: constr(pattern=r'^\d{10}$')
+    email: EmailStr
+    address: str
+    materials_supplied: str
+    rating: float = 0
+    status: VendorStatus = VendorStatus.Active
+
+
+class VendorUpdate(BaseModel):
+    vendor_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    address: Optional[str] = None
+    materials_supplied: Optional[str] = None
+    rating: Optional[float] = None
+    status: Optional[VendorStatus] = None
+
+
+# ---------------- MATERIAL REQUESTS ----------------
+
+class MaterialRequestCreate(BaseModel):
+    project_id: int
+    requested_by: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    required_date: date
+    priority: PriorityLevel = PriorityLevel.Medium
+    status: RequestStatus = RequestStatus.Pending
+    comments: Optional[str] = None
+
+
+class MaterialRequestUpdate(BaseModel):
+    material_name: Optional[str] = None
+    quantity: Optional[int] = None
+    required_date: Optional[date] = None
+    priority: Optional[PriorityLevel] = None
+    status: Optional[RequestStatus] = None
+    comments: Optional[str] = None
+
+
+# ---------------- PURCHASE ORDERS ----------------
+
+class PurchaseOrderCreate(BaseModel):
+    po_number: str
+    project_id: int
+    vendor_id: int
+    request_id: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    unit_price: float = Field(gt=0)
+    total_cost: float = Field(gt=0)
+    expected_delivery_date: date
+    status: PurchaseOrderStatus = PurchaseOrderStatus.Created
+
+
+class PurchaseOrderUpdate(BaseModel):
+    quantity: Optional[int] = None
+    unit_price: Optional[float] = None
+    total_cost: Optional[float] = None
+    expected_delivery_date: Optional[date] = None
+    status: Optional[PurchaseOrderStatus] = None
+
+
+# ---------------- MATERIAL DELIVERY ----------------
+
+class MaterialDeliveryCreate(BaseModel):
+    purchase_order_id: int
+    received_quantity: int = Field(gt=0)
+    quality: str
+    delivery_date: date
+    status: DeliveryStatus = DeliveryStatus.Received
+    remarks: Optional[str] = None
+
+
+class MaterialDeliveryUpdate(BaseModel):
+    received_quantity: Optional[int] = None
+    quality: Optional[str] = None
+    delivery_date: Optional[date] = None
+    status: Optional[DeliveryStatus] = None
+    remarks: Optional[str] = None    
+
+# ---------------- INVOICES ----------------
+
+class InvoiceCreate(BaseModel):
+    invoice_number: str
+    vendor_id: int
+    purchase_order_id: int
+    amount: float = Field(gt=0)
+    gst: float = 0
+    invoice_date: date
+    payment_status: PaymentStatus = PaymentStatus.Pending
+
+
+class InvoiceUpdate(BaseModel):
+    amount: Optional[float] = None
+    gst: Optional[float] = None
+    payment_status: Optional[PaymentStatus] = None    
+
+
+# ---------------- PAYMENTS ----------------
+
+class PaymentCreate(BaseModel):
+    invoice_id: int
+    payment_date: date
+    amount: float = Field(gt=0)
+    payment_method: str
+    transaction_id: str
+    status: PaymentStatus = PaymentStatus.Pending
+    remarks: Optional[str] = None
+
+
+class PaymentUpdate(BaseModel):
+    payment_date: Optional[date] = None
+    amount: Optional[float] = None
+    payment_method: Optional[str] = None
+    transaction_id: Optional[str] = None
+    status: Optional[PaymentStatus] = None
+    remarks: Optional[str] = None
+
+
+

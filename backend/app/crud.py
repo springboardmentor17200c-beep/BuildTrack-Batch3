@@ -2,6 +2,9 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import hash_password
 from app import models
+from sqlalchemy import func
+from sqlalchemy import extract
+from datetime import date
 
 
 # ======================================================
@@ -852,17 +855,6 @@ def search_project(db, name):
 
 
 
-
-
-def low_stock(db):
-    return db.query(models.Inventory).filter(
-        models.Inventory.quantity < 10
-    ).all()
-
-
-
-
-
 def search_inventory(
     db: Session,
     material: str
@@ -918,41 +910,12 @@ def available_resources(db: Session):
     ).all()
 
 
-from datetime import date
+
 
 def today_attendance(db):
     return db.query(models.Attendance).filter(
-        models.Attendance.date == date.today()
+        models.Attendance.attendance_date == date.today()
     ).all()
-
-
-
-
-
-def admin_dashboard(db):
-
-    return {
-
-        "users": db.query(models.User).count(),
-
-        "projects": db.query(models.Project).count(),
-
-        "running_projects": running_projects(db),
-
-        "completed_projects": completed_projects(db),
-
-        "workers": db.query(models.Worker).count(),
-
-        "inventory": db.query(models.Inventory).count(),
-
-        "low_stock": low_stock_count(db),
-
-        "attendance_today": attendance_today_count(db),
-
-        "pending_procurements": db.query(models.Procurement)
-            .filter(models.Procurement.status=="Pending")
-            .count()
-    }
 
 
 
@@ -1037,7 +1000,7 @@ def low_stock_count(db):
         models.Inventory.minimum_stock
     ).count()
 
-from datetime import date
+
 
 def attendance_today_count(db):
     return db.query(models.Attendance).filter(
@@ -1147,7 +1110,7 @@ def mark_attendance(
 
 
 
-from sqlalchemy import extract
+
 
 def monthly_report(
     db: Session,
@@ -1157,14 +1120,14 @@ def monthly_report(
 
     return db.query(models.Attendance).filter(
 
-        extract("month", models.Attendance.date) == month,
+        extract("month", models.Attendance.attendance_date) == month,
 
-        extract("year", models.Attendance.date) == year
+        extract("year", models.Attendance.attendance_date) == year
 
     ).all()
 
 
-from sqlalchemy import func
+
 
 def present_count(db: Session):
 
@@ -1185,16 +1148,626 @@ def absent_count(db: Session):
 
 
 
+
 def admin_dashboard(db):
     return {
+
+        # Existing Dashboard
         "total_projects": db.query(models.Project).count(),
+
         "total_workers": db.query(models.Worker).count(),
+
         "total_inventory": db.query(models.Inventory).count(),
+
         "pending_procurements": db.query(models.Procurement)
-            .filter(models.Procurement.status == "Pending")
-            .count(),
+        .filter(models.Procurement.status == "Pending")
+        .count(),
+
         "completed_projects": db.query(models.Project)
-            .filter(models.Project.status == "Completed")
-            .count(),
-        "notifications": db.query(models.Notification).count()
+        .filter(models.Project.status == "Completed")
+        .count(),
+
+        "notifications": db.query(models.Notification).count(),
+
+        # New Procurement Dashboard
+        "total_vendors": db.query(models.Vendor).count(),
+
+        "total_material_requests": db.query(models.MaterialRequest).count(),
+
+        "approved_requests": db.query(models.MaterialRequest)
+        .filter(models.MaterialRequest.status == "Approved")
+        .count(),
+
+        "total_purchase_orders": db.query(models.PurchaseOrder).count(),
+
+        "total_invoices": db.query(models.Invoice).count(),
+
+        "pending_payments": db.query(models.Payment)
+        .filter(models.Payment.status == "Pending")
+        .count(),
+
+        "completed_payments": db.query(models.Payment)
+        .filter(models.Payment.status == "Paid")
+        .count()
+    }
+
+
+
+# =====================================================
+# VENDOR CRUD
+# =====================================================
+
+def create_vendor(db, vendor: schemas.VendorCreate):
+    db_vendor = models.Vendor(**vendor.model_dump())
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
+
+
+def get_vendors(db):
+    return db.query(models.Vendor).all()
+
+
+def get_vendor(db, vendor_id: int):
+    return (
+        db.query(models.Vendor)
+        .filter(models.Vendor.id == vendor_id)
+        .first()
+    )
+
+
+def update_vendor(
+    db,
+    vendor_id: int,
+    vendor: schemas.VendorUpdate
+):
+    db_vendor = get_vendor(db, vendor_id)
+
+    if not db_vendor:
+        return None
+
+    for key, value in vendor.model_dump(exclude_unset=True).items():
+        setattr(db_vendor, key, value)
+
+    db.commit()
+    db.refresh(db_vendor)
+
+    return db_vendor
+
+
+def delete_vendor(
+    db,
+    vendor_id: int
+):
+    db_vendor = get_vendor(db, vendor_id)
+
+    if not db_vendor:
+        return None
+
+    db.delete(db_vendor)
+    db.commit()
+
+    return {
+        "message": "Vendor deleted successfully"
+    }
+
+
+
+# =====================================================
+# MATERIAL REQUEST CRUD
+# =====================================================
+
+def create_material_request(
+    db,
+    request: schemas.MaterialRequestCreate
+):
+    db_request = models.MaterialRequest(
+        **request.model_dump()
+    )
+
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+def get_material_requests(db):
+    return db.query(
+        models.MaterialRequest
+    ).all()
+
+
+def get_material_request(
+    db,
+    request_id: int
+):
+    return (
+        db.query(models.MaterialRequest)
+        .filter(
+            models.MaterialRequest.id == request_id
+        )
+        .first()
+    )
+
+
+def update_material_request(
+    db,
+    request_id: int,
+    request: schemas.MaterialRequestUpdate
+):
+    db_request = get_material_request(
+        db,
+        request_id
+    )
+
+    if not db_request:
+        return None
+
+    for key, value in request.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_request, key, value)
+
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+def approve_material_request(
+    db,
+    request_id: int
+):
+    db_request = get_material_request(
+        db,
+        request_id
+    )
+
+    if not db_request:
+        return None
+
+    db_request.status = "Approved"
+
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+def reject_material_request(
+    db,
+    request_id: int
+):
+    db_request = get_material_request(
+        db,
+        request_id
+    )
+
+    if not db_request:
+        return None
+
+    db_request.status = "Rejected"
+
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+def delete_material_request(
+    db,
+    request_id: int
+):
+    db_request = get_material_request(
+        db,
+        request_id
+    )
+
+    if not db_request:
+        return None
+
+    db.delete(db_request)
+    db.commit()
+
+    return {
+        "message": "Material Request deleted successfully"
+    }
+
+
+# =====================================================
+# PURCHASE ORDER CRUD
+# =====================================================
+
+def create_purchase_order(
+    db,
+    purchase_order: schemas.PurchaseOrderCreate
+):
+
+    request = (
+        db.query(models.MaterialRequest)
+        .filter(
+            models.MaterialRequest.id == purchase_order.request_id
+        )
+        .first()
+    )
+
+    if not request:
+        raise ValueError("Material Request not found")
+
+    if request.status != "Approved":
+        raise ValueError(
+            "Purchase Order can only be created for Approved Requests"
+        )
+
+    db_po = models.PurchaseOrder(
+        **purchase_order.model_dump()
+    )
+
+    db.add(db_po)
+
+    db.commit()
+    db.refresh(db_po)
+
+    return db_po
+
+def get_purchase_orders(db):
+    return db.query(
+        models.PurchaseOrder
+    ).all()
+
+
+def get_purchase_order(
+    db,
+    po_id: int
+):
+    return (
+        db.query(models.PurchaseOrder)
+        .filter(models.PurchaseOrder.id == po_id)
+        .first()
+    )
+
+
+def update_purchase_order(
+    db,
+    po_id: int,
+    purchase_order: schemas.PurchaseOrderUpdate
+):
+    db_po = get_purchase_order(db, po_id)
+
+    if not db_po:
+        return None
+
+    for key, value in purchase_order.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_po, key, value)
+
+    db.commit()
+    db.refresh(db_po)
+
+    return db_po
+
+
+def delete_purchase_order(
+    db,
+    po_id: int
+):
+    db_po = get_purchase_order(db, po_id)
+
+    if not db_po:
+        return None
+
+    db.delete(db_po)
+    db.commit()
+
+    return {
+        "message": "Purchase Order deleted successfully"
+    }
+
+
+
+# =====================================================
+# MATERIAL DELIVERY CRUD
+# =====================================================
+
+def create_material_delivery(
+    db,
+    delivery: schemas.MaterialDeliveryCreate
+):
+    db_delivery = models.MaterialDelivery(
+        **delivery.model_dump()
+    )
+
+    db.add(db_delivery)
+
+    # Get Purchase Order
+    purchase_order = (
+        db.query(models.PurchaseOrder)
+        .filter(
+            models.PurchaseOrder.id == delivery.purchase_order_id
+        )
+        .first()
+    )
+
+    if purchase_order:
+
+        inventory = (
+            db.query(models.Inventory)
+            .filter(
+                models.Inventory.project_id == purchase_order.project_id,
+                models.Inventory.material_name == purchase_order.material_name
+            )
+            .first()
+        )
+
+        if inventory:
+            inventory.quantity += delivery.received_quantity
+
+    db.commit()
+    db.refresh(db_delivery)
+
+    return db_delivery
+
+
+def get_material_deliveries(db):
+    return db.query(
+        models.MaterialDelivery
+    ).all()
+
+
+def get_material_delivery(
+    db,
+    delivery_id: int
+):
+    return (
+        db.query(models.MaterialDelivery)
+        .filter(
+            models.MaterialDelivery.id == delivery_id
+        )
+        .first()
+    )
+
+
+def update_material_delivery(
+    db,
+    delivery_id: int,
+    delivery: schemas.MaterialDeliveryUpdate
+):
+    db_delivery = get_material_delivery(
+        db,
+        delivery_id
+    )
+
+    if not db_delivery:
+        return None
+
+    for key, value in delivery.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_delivery, key, value)
+
+    db.commit()
+    db.refresh(db_delivery)
+
+    return db_delivery
+
+
+def delete_material_delivery(
+    db,
+    delivery_id: int
+):
+    db_delivery = get_material_delivery(
+        db,
+        delivery_id
+    )
+
+    if not db_delivery:
+        return None
+
+    db.delete(db_delivery)
+    db.commit()
+
+    return {
+        "message": "Material Delivery deleted successfully"
+    }
+
+
+
+# =====================================================
+# INVOICE CRUD
+# =====================================================
+
+def create_invoice(
+    db,
+    invoice: schemas.InvoiceCreate
+):
+    db_invoice = models.Invoice(
+        **invoice.model_dump()
+    )
+
+    db.add(db_invoice)
+    db.commit()
+    db.refresh(db_invoice)
+
+    return db_invoice
+
+
+def get_invoices(db):
+    return db.query(
+        models.Invoice
+    ).all()
+
+
+def get_invoice(
+    db,
+    invoice_id: int
+):
+    return (
+        db.query(models.Invoice)
+        .filter(
+            models.Invoice.id == invoice_id
+        )
+        .first()
+    )
+
+
+def update_invoice(
+    db,
+    invoice_id: int,
+    invoice: schemas.InvoiceUpdate
+):
+    db_invoice = get_invoice(
+        db,
+        invoice_id
+    )
+
+    if not db_invoice:
+        return None
+
+    for key, value in invoice.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_invoice, key, value)
+
+    db.commit()
+    db.refresh(db_invoice)
+
+    return db_invoice
+
+
+def delete_invoice(
+    db,
+    invoice_id: int
+):
+    db_invoice = get_invoice(
+        db,
+        invoice_id
+    )
+
+    if not db_invoice:
+        return None
+
+    db.delete(db_invoice)
+    db.commit()
+
+    return {
+        "message": "Invoice deleted successfully"
+    }
+
+
+
+# =====================================================
+# PAYMENT CRUD
+# =====================================================
+
+def create_payment(
+    db,
+    payment: schemas.PaymentCreate
+):
+    db_payment = models.Payment(
+        **payment.model_dump()
+    )
+
+    db.add(db_payment)
+    db.commit()
+    db.refresh(db_payment)
+
+    return db_payment
+
+
+def get_payments(db):
+    return db.query(
+        models.Payment
+    ).all()
+
+
+def get_payment(
+    db,
+    payment_id: int
+):
+    return (
+        db.query(models.Payment)
+        .filter(
+            models.Payment.id == payment_id
+        )
+        .first()
+    )
+
+
+def update_payment(
+    db,
+    payment_id: int,
+    payment: schemas.PaymentUpdate
+):
+    db_payment = get_payment(
+        db,
+        payment_id
+    )
+
+    if not db_payment:
+        return None
+
+    for key, value in payment.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_payment, key, value)
+
+    db.commit()
+    db.refresh(db_payment)
+
+    return db_payment
+
+
+def mark_payment_paid(
+    db,
+    payment_id: int
+):
+    db_payment = get_payment(
+        db,
+        payment_id
+    )
+
+    if not db_payment:
+        return None
+
+    # Update Payment Status
+    db_payment.status = "Paid"
+
+    # Update Invoice Payment Status
+    invoice = (
+        db.query(models.Invoice)
+        .filter(
+            models.Invoice.id == db_payment.invoice_id
+        )
+        .first()
+    )
+
+    if invoice:
+        invoice.payment_status = "Paid"
+
+    db.commit()
+    db.refresh(db_payment)
+
+    return db_payment
+
+
+def delete_payment(
+    db,
+    payment_id: int
+):
+    db_payment = get_payment(
+        db,
+        payment_id
+    )
+
+    if not db_payment:
+        return None
+
+    db.delete(db_payment)
+    db.commit()
+
+    return {
+        "message": "Payment deleted successfully"
     }

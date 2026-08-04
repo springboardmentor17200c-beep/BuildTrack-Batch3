@@ -22,7 +22,12 @@ from app.routes import (
     reports,
     documents,
      dashboard,
-    
+     vendors,
+     material_requests,
+     purchase_orders,
+     material_deliveries,
+     invoices,
+     payments,
     
 )
 
@@ -75,3 +80,9 @@ app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(documents.router)
 app.include_router(dashboard.router)
+app.include_router(vendors.router)
+app.include_router(material_requests.router)
+app.include_router(purchase_orders.router)
+app.include_router(material_deliveries.router)
+app.include_router(invoices.router)
+app.include_router(payments.router)
