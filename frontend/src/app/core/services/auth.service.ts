@@ -1,21 +1,32 @@
 import { Injectable } from '@angular/core';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface User {
+  id?: number;
   name: string;
   email: string;
   role: string;
   token?: string;
 }
 
+interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: Omit<User, 'token'>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+  private apiUrl = 'http://127.0.0.1:8000/users';
+
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser$: Observable<User | null>;
 
-  constructor() {
+  constructor(private http: HttpClient) {
     const storedUser = localStorage.getItem('bt_user');
     this.currentUserSubject = new BehaviorSubject<User | null>(
       storedUser ? JSON.parse(storedUser) : null
@@ -28,70 +39,77 @@ export class AuthService {
   }
 
   public get isLoggedIn(): boolean {
-    return !!this.currentUserValue;
+    return !!this.currentUserValue?.token;
   }
 
   public get userRole(): string | null {
-    return this.currentUserValue ? this.currentUserValue.role : null;
+    return this.currentUserValue?.role || null;
   }
 
-  login(email: string, role: string): Observable<User> {
-    // Simulated JWT login. Any credentials will pass.
-    const mockUser: User = {
-      name: this.getUserNameByRole(role),
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
+  login(email: string, password: string): Observable<LoginResponse> {
+    const body = new HttpParams()
+      .set('username', email)
+      .set('password', password);
+
+    return this.http.post<LoginResponse>(
+      `${this.apiUrl}/login`,
+      body.toString(),
+      {
+        headers: new HttpHeaders({
+          'Content-Type': 'application/x-www-form-urlencoded'
+        })
+      }
+    ).pipe(
+      tap(response => {
+        const user: User = { ...response.user, token: response.access_token };
+        localStorage.setItem('bt_user', JSON.stringify(user));
+        localStorage.setItem('bt_token', response.access_token);
+        this.currentUserSubject.next(user);
+      })
+    );
   }
 
-  register(name: string, email: string, role: string): Observable<User> {
-    // Simulated registration
-    const mockUser: User = {
-      name: name,
-      email: email,
-      role: role,
-      token: 'mock-jwt-token-xyz-123'
-    };
-    
-    localStorage.setItem('bt_user', JSON.stringify(mockUser));
-    this.currentUserSubject.next(mockUser);
-    return of(mockUser);
-  }
+
+ 
+
+ register(
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+  phone: string
+): Observable<any> {
+
+  return this.http.post(`${this.apiUrl}/register`, {
+    name,
+    email,
+    password,
+    role,
+    phone
+  });
+
+}
+
 
   resetPassword(email: string): Observable<boolean> {
-    // Simulated forgot password
-    console.log(`Password reset link sent to: ${email}`);
+    console.log('Reset password:', email);
     return of(true);
   }
 
   logout(): void {
     localStorage.removeItem('bt_user');
+    localStorage.removeItem('bt_token');
     this.currentUserSubject.next(null);
   }
 
   updateProfile(name: string, email: string): Observable<User | null> {
     if (this.currentUserValue) {
-      const updatedUser = { ...this.currentUserValue, name, email };
+      const updatedUser: User = { ...this.currentUserValue, name, email };
       localStorage.setItem('bt_user', JSON.stringify(updatedUser));
       this.currentUserSubject.next(updatedUser);
       return of(updatedUser);
     }
-    return of(null);
-  }
 
-  private getUserNameByRole(role: string): string {
-    switch(role) {
-      case 'Admin': return 'John Doe (Admin)';
-      case 'Project Manager': return 'Sarah Jenkins';
-      case 'Site Engineer': return 'Alex Rivera';
-      case 'Contractor': return 'Marcus Vance';
-      case 'Client': return 'BuildCorp Developments';
-      default: return 'User';
-    }
+    return of(null);
   }
 }

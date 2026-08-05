@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-
+from app.dependencies import require_role
 from app.database import get_db
 from app import crud
 from app import schemas
@@ -64,13 +64,61 @@ def login(
 
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": db_user.id,
+            "name": db_user.name,
+            "email": db_user.email,
+            "role": db_user.role
+        }
     }
 
 
 @router.get("/")
 def get_users(
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_role("Admin")),
     db: Session = Depends(get_db)
 ):
-    return crud.get_all_users(db)
+    users = crud.get_users(db)
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "phone": u.phone,
+            "status": "Active"
+        }
+        for u in users
+    ]
+
+
+@router.put("/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    role: str = Body(..., embed=True),
+    current_user=Depends(require_role("Admin")),
+    db: Session = Depends(get_db)
+):
+    updated = crud.update_user_role(db, user_id, role)
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": updated.id,
+        "name": updated.name,
+        "email": updated.email,
+        "role": updated.role,
+        "status": "Active"
+    }
+
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user=Depends(require_role("Admin")),
+    db: Session = Depends(get_db)
+):
+    deleted = crud.delete_user(db, user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User deleted successfully"}

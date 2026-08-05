@@ -1,13 +1,16 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+import os
 
-# SQLite database
-DATABASE_URL = "sqlite:///./buildtrack.db"
+load_dotenv()
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:rahul123@localhost:5432/buildtrack"
 )
+
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -18,7 +21,6 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 
-# Dependency
 def get_db():
     db = SessionLocal()
     try:

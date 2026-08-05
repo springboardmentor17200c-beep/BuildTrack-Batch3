@@ -1,30 +1,42 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-
-interface AllocatedAsset {
-  id: number;
-  assetName: string;
-  project: string;
-  operator: string;
-  startDate: string;
-  status: 'In Use' | 'Standby' | 'Under Maintenance';
-}
+import { MatTabsModule } from '@angular/material/tabs';
+import { EquipmentListComponent } from './equipment-list.component';
+import { ResourceAllocationComponent } from './resource-allocation.component';
+import { ResourceUtilizationComponent } from './resource-utilization.component';
+import { ResourceService } from '../../core/services/resource.service';
+import { ToastService } from '../../core/services/toast.service';
+import { ToastComponent } from '../../shared/components/toast/toast.component';
 
 @Component({
   selector: 'app-resource-management',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatIconModule, MatButtonModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTabsModule,
+    EquipmentListComponent,
+    ResourceAllocationComponent,
+    ResourceUtilizationComponent,
+    ToastComponent
+  ],
   template: `
     <div class="container-fluid">
-      <!-- Title -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <!-- Title & Action -->
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h1 class="h2 fw-bold mb-1 text-slate-800">Resource & Equipment Management</h1>
           <p class="text-muted mb-0">Track heavy machinery deployment, maintenance routines, and site operator allocations</p>
         </div>
+        <button class="btn btn-bt-primary d-flex align-items-center gap-2" (click)="showAddModal = true">
+          <mat-icon>add</mat-icon>
+          <span>Add New Asset</span>
+        </button>
       </div>
 
       <!-- Overview Cards -->
@@ -44,165 +56,161 @@ interface AllocatedAsset {
         </div>
       </div>
 
-      <!-- Main Layout -->
-      <div class="row g-4">
-        <!-- Machinery Allocation Form -->
-        <div class="col-12 col-lg-5">
-          <div class="bt-card">
-            <div class="bt-card-header">
-              <h5 class="fw-bold mb-0">Deploy Equipment / Asset</h5>
-              <mat-icon class="text-primary">schedule_send</mat-icon>
+      <!-- Tabbed layout panels -->
+      <mat-tab-group class="bg-white rounded shadow-sm p-3">
+        <mat-tab label="Machinery Inventory Fleet">
+          <div class="p-3">
+            <h5 class="fw-bold mb-3 text-slate-800">Operational Equipment Fleet</h5>
+            <app-equipment-list #eqList></app-equipment-list>
+          </div>
+        </mat-tab>
+        
+        <mat-tab label="Deployment & Allocations">
+          <div class="p-3">
+            <app-resource-allocation #resAlloc (allocationSaved)="onAllocationUpdated()"></app-resource-allocation>
+          </div>
+        </mat-tab>
+        
+        <mat-tab label="Fleet Utilization Analysis">
+          <div class="p-3">
+            <app-resource-utilization></app-resource-utilization>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+
+    <!-- Add Asset Modal Overlay -->
+    <div *ngIf="showAddModal" class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+    <div *ngIf="showAddModal" class="modal d-block" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Add New Resource / Asset</h5>
+            <button type="button" class="btn-close" (click)="showAddModal = false"></button>
+          </div>
+          <form [formGroup]="addResourceForm" (ngSubmit)="onCreateResource()">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="bt-form-label">Resource / Equipment Name</label>
+                <input type="text" class="form-control bt-form-control" formControlName="resource_name" placeholder="e.g. Caterpillar Excavator #5">
+              </div>
+              <div class="mb-3">
+                <label class="bt-form-label">Category</label>
+                <select class="form-select bt-form-control" formControlName="category">
+                  <option value="Heavy Machinery">Heavy Machinery</option>
+                  <option value="Lifting Assets">Lifting Assets</option>
+                  <option value="Vehicles">Vehicles</option>
+                  <option value="Power Systems">Power Systems</option>
+                  <option value="General Equipment">General Equipment</option>
+                </select>
+              </div>
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="bt-form-label">Quantity</label>
+                  <input type="number" class="form-control bt-form-control" formControlName="quantity" min="1">
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="bt-form-label">Initial Status</label>
+                  <select class="form-select bt-form-control" formControlName="status">
+                    <option value="Available">Available</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+              </div>
             </div>
-
-            <form [formGroup]="deployForm" (ngSubmit)="onDeploy()" class="d-flex flex-column gap-3">
-              <div class="mb-1">
-                <label class="bt-form-label">Asset / Machinery</label>
-                <select class="form-select bt-form-control" formControlName="assetName">
-                  <option value="Tower Crane #1">Tower Crane #1 (Liebherr)</option>
-                  <option value="Caterpillar Excavator #3">Caterpillar Excavator #3</option>
-                  <option value="Concrete Mixer #2">Concrete Mixer #2 (Volvo)</option>
-                  <option value="Diesel Generator #5">Diesel Generator #5 (Cummins)</option>
-                  <option value="Forklift Loader #4">Forklift Loader #4 (Toyota)</option>
-                </select>
-              </div>
-
-              <div class="mb-1">
-                <label class="bt-form-label">Assign to Site Project</label>
-                <select class="form-select bt-form-control" formControlName="project">
-                  <option value="Metropolitan Commercial Plaza">Metropolitan Commercial Plaza</option>
-                  <option value="Riverside Residential Township">Riverside Residential Township</option>
-                  <option value="Industrial Cold Storage Unit">Industrial Cold Storage Unit</option>
-                  <option value="State Highway Bypass Route">State Highway Bypass Route</option>
-                </select>
-              </div>
-
-              <div class="mb-1">
-                <label class="bt-form-label">Assigned Operator</label>
-                <input type="text" class="form-control bt-form-control" formControlName="operator" placeholder="e.g. John Doe">
-                <div *ngIf="submitted && f['operator'].errors" class="text-danger text-xs mt-1">
-                  <span>Operator name is required</span>
-                </div>
-              </div>
-
-              <div class="mb-1">
-                <label class="bt-form-label">Deployment Start Date</label>
-                <input type="date" class="form-control bt-form-control" formControlName="startDate">
-                <div *ngIf="submitted && f['startDate'].errors" class="text-danger text-xs mt-1">
-                  <span>Start date is required</span>
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 d-flex align-items-center justify-content-center gap-2">
-                <mat-icon>local_shipping</mat-icon>
-                <span>Deploy Asset</span>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" (click)="showAddModal = false">Cancel</button>
+              <button type="submit" class="btn btn-bt-primary" [disabled]="addResourceForm.invalid || isSubmitting">
+                <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-1"></span>
+                <span>Save Asset</span>
               </button>
-            </form>
-          </div>
-        </div>
-
-        <!-- Allocation Ledger Table -->
-        <div class="col-12 col-lg-7">
-          <div class="bt-card">
-            <div class="bt-card-header">
-              <h5 class="fw-bold mb-0">Active Machinery Allocations</h5>
-              <span class="badge bg-light text-dark border border-secondary border-opacity-10 text-xs">Platform Live Status</span>
             </div>
-
-            <div class="table-responsive">
-              <table class="table align-middle text-sm mb-0">
-                <thead class="table-light text-muted uppercase text-xs">
-                  <tr>
-                    <th>Asset Name</th>
-                    <th>Assigned Project</th>
-                    <th>Operator</th>
-                    <th>Depl. Date</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let asset of allocations">
-                    <td>
-                      <div class="d-flex align-items-center gap-2">
-                        <mat-icon class="text-slate-500">handyman</mat-icon>
-                        <span class="fw-semibold text-slate-800">{{ asset.assetName }}</span>
-                      </div>
-                    </td>
-                    <td>{{ asset.project }}</td>
-                    <td>{{ asset.operator }}</td>
-                    <td>{{ asset.startDate }}</td>
-                    <td>
-                      <span class="bt-badge" 
-                            [class.bt-badge-success]="asset.status === 'In Use'" 
-                            [class.bt-badge-warning]="asset.status === 'Standby'" 
-                            [class.bt-badge-danger]="asset.status === 'Under Maintenance'">
-                        {{ asset.status }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
+
+    <app-toast></app-toast>
   `,
   styles: [`
     .text-xs { font-size: 0.8rem; }
   `]
 })
 export class ResourceManagementComponent implements OnInit {
-  deployForm!: FormGroup;
-  submitted = false;
+  @ViewChild('eqList') eqListComponent!: EquipmentListComponent;
+  @ViewChild('resAlloc') resAllocComponent!: ResourceAllocationComponent;
+
+  showAddModal = false;
+  isSubmitting = false;
+  addResourceForm!: FormGroup;
 
   cards = [
-    { title: 'Total Assets', value: '18 Heavy', icon: 'precision_manufacturing', color: '#ff7a00' },
-    { title: 'Active Deployments', value: '12 In Use', icon: 'engineering', color: '#10b981' },
-    { title: 'Maintenance Queue', value: '2 Units', icon: 'build', color: '#ef4444' }
+    { title: 'Total Assets', value: '0', icon: 'precision_manufacturing', color: '#ff7a00' },
+    { title: 'Active Deployments', value: '0', icon: 'engineering', color: '#10b981' },
+    { title: 'Maintenance Queue', value: '0', icon: 'build', color: '#ef4444' }
   ];
 
-  allocations: AllocatedAsset[] = [
-    { id: 1, assetName: 'Caterpillar Excavator #3', project: 'Riverside Residential Township', operator: 'Dave Miller', startDate: '2026-06-01', status: 'In Use' },
-    { id: 2, assetName: 'Liebherr Tower Crane #1', project: 'Metropolitan Commercial Plaza', operator: 'Arthur Dent', startDate: '2026-05-10', status: 'In Use' },
-    { id: 3, assetName: 'Volvo Concrete Mixer truck #2', project: 'Metropolitan Commercial Plaza', operator: 'Trillian Astra', startDate: '2026-06-15', status: 'Under Maintenance' },
-    { id: 4, assetName: 'Cummins Diesel Generator #5', project: 'Industrial Cold Storage Unit', operator: 'Ford Prefect', startDate: '2026-06-20', status: 'Standby' }
-  ];
-
-  constructor(private formBuilder: FormBuilder) {}
+  constructor(
+    private resourceService: ResourceService,
+    private toastService: ToastService,
+    private fb: FormBuilder
+  ) {}
 
   ngOnInit(): void {
-    this.deployForm = this.formBuilder.group({
-      assetName: ['Tower Crane #1', Validators.required],
-      project: ['Metropolitan Commercial Plaza', Validators.required],
-      operator: ['', Validators.required],
-      startDate: ['', Validators.required]
+    this.addResourceForm = this.fb.group({
+      resource_name: ['', Validators.required],
+      category: ['Heavy Machinery', Validators.required],
+      quantity: [1, [Validators.required, Validators.min(1)]],
+      status: ['Available', Validators.required]
+    });
+    this.updateStats();
+  }
+
+  updateStats(): void {
+    this.resourceService.getEquipment().subscribe(list => {
+      const total = list.length;
+      const active = list.filter(e => e.status === 'Assigned').length;
+      const maintenance = list.filter(e => e.status === 'Maintenance').length;
+
+      this.cards[0].value = `${total} Units`;
+      this.cards[1].value = `${active} In Use`;
+      this.cards[2].value = `${maintenance} Units`;
     });
   }
 
-  get f() { return this.deployForm.controls; }
+  onCreateResource(): void {
+    if (this.addResourceForm.invalid) return;
 
-  onDeploy(): void {
-    this.submitted = true;
-
-    if (this.deployForm.invalid) {
-      return;
-    }
-
-    const formVal = this.deployForm.value;
-    const newAlloc: AllocatedAsset = {
-      id: this.allocations.length + 1,
-      assetName: formVal.assetName,
-      project: formVal.project,
-      operator: formVal.operator,
-      startDate: formVal.startDate,
-      status: 'In Use'
-    };
-
-    this.allocations.unshift(newAlloc);
-    this.deployForm.reset({
-      assetName: 'Tower Crane #1',
-      project: 'Metropolitan Commercial Plaza'
+    this.isSubmitting = true;
+    this.resourceService.createResource(this.addResourceForm.value).subscribe({
+      next: (created) => {
+        this.isSubmitting = false;
+        this.showAddModal = false;
+        this.toastService.showSuccess(`Asset ${created.name} added successfully!`);
+        this.addResourceForm.reset({
+          resource_name: '',
+          category: 'Heavy Machinery',
+          quantity: 1,
+          status: 'Available'
+        });
+        this.onAllocationUpdated();
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.toastService.showError('Failed to create resource asset.');
+      }
     });
-    this.submitted = false;
+  }
+
+  onAllocationUpdated(): void {
+    this.updateStats();
+    if (this.eqListComponent) {
+      this.eqListComponent.loadEquipment();
+    }
+    if (this.resAllocComponent) {
+      this.resAllocComponent.loadData();
+    }
   }
 }
+
