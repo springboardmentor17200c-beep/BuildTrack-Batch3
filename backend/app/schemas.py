@@ -114,6 +114,13 @@ class NotificationCreate(BaseModel):
     message: str
 
 
+class NotificationUpdate(BaseModel):
+    notification_type: Optional[NotificationType] = None
+    title: Optional[str] = None
+    message: Optional[str] = None
+    is_read: Optional[bool] = None
+
+
 class NotificationResponse(BaseModel):
     id: int
     user_id: int
