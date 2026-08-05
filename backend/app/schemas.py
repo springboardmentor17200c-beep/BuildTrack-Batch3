@@ -62,6 +62,9 @@ class InventoryCreate(BaseModel):
     minimum_stock: int
     supplier: str
 
+class InventoryUpdate(InventoryCreate):
+    pass
+
 
 # ---------------- WORKERS ----------------
 
@@ -71,6 +74,9 @@ class WorkerCreate(BaseModel):
     phone: str
     designation: str
     salary: float
+
+class WorkerUpdate(WorkerCreate):
+    pass
 
 
 # ---------------- ATTENDANCE ----------------
@@ -83,6 +89,9 @@ class AttendanceCreate(BaseModel):
     check_in: str
     check_out: str
 
+class AttendanceUpdate(AttendanceCreate):
+    pass
+
 
 # ---------------- PROCUREMENT ----------------
 
@@ -94,6 +103,9 @@ class ProcurementCreate(BaseModel):
     total_cost: float
     purchase_date: date
     status: str
+
+class ProcurementUpdate(ProcurementCreate):
+    pass
 
 
 # ---------------- NOTIFICATIONS ----------------
@@ -141,3 +153,77 @@ class ReportCreate(BaseModel):
     generated_by: int
     report_type: str
     report_url: str
+
+class ReportUpdate(ReportCreate):
+    pass
+
+
+# ---------------- DOCUMENTS ----------------
+
+class DocumentCreate(BaseModel):
+    project_id: int
+    title: Optional[str] = None
+    file_url: Optional[str] = None
+    uploaded_by: Optional[int] = None
+
+
+# ---------------- VENDOR / PROCUREMENT EXTRAS ----------------
+
+class VendorCreate(BaseModel):
+    name: str
+    contact: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+class VendorUpdate(VendorCreate):
+    pass
+
+class MaterialRequestCreate(BaseModel):
+    project_id: int
+    material_name: str
+    quantity: int
+    requested_by: Optional[int] = None
+    status: Optional[str] = None
+
+class MaterialRequestUpdate(MaterialRequestCreate):
+    pass
+
+class PurchaseOrderCreate(BaseModel):
+    project_id: int
+    vendor_id: Optional[int] = None
+    material_name: str
+    quantity: int
+    total_cost: float
+    status: Optional[str] = None
+
+class PurchaseOrderUpdate(PurchaseOrderCreate):
+    pass
+
+class MaterialDeliveryCreate(BaseModel):
+    project_id: int
+    material_name: str
+    quantity: int
+    delivery_date: Optional[date] = None
+    status: Optional[str] = None
+
+class MaterialDeliveryUpdate(MaterialDeliveryCreate):
+    pass
+
+class InvoiceCreate(BaseModel):
+    project_id: int
+    vendor_id: Optional[int] = None
+    amount: float
+    status: Optional[str] = None
+    invoice_date: Optional[date] = None
+
+class InvoiceUpdate(InvoiceCreate):
+    pass
+
+class PaymentCreate(BaseModel):
+    project_id: int
+    amount: float
+    payment_date: Optional[date] = None
+    status: Optional[str] = None
+
+class PaymentUpdate(PaymentCreate):
+    pass
