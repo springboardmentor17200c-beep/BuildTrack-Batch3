@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel, EmailStr, constr, Field
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from enum import Enum
 
@@ -9,6 +10,7 @@ class ProjectStatus(str, Enum):
     Completed = "Completed"
 
 class AttendanceStatus(str, Enum):
+
     Present = "Present"
     Absent = "Absent"
     OnLeave = "On Leave"
@@ -223,3 +225,88 @@ class DocumentCreate(BaseModel):
 class DocumentUpdate(BaseModel):
     file_name: str | None = None
     description: str | None = None
+
+
+# ---------------- VENDORS ----------------
+
+class VendorCreate(BaseModel):
+    vendor_name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    materials: Optional[str] = None
+    rating: Optional[float] = 5.0
+    is_active: Optional[bool] = True
+
+class VendorUpdate(BaseModel):
+    vendor_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    materials: Optional[str] = None
+    rating: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+# ---------------- MATERIAL REQUESTS ----------------
+
+class MaterialRequestCreate(BaseModel):
+    project_id: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    required_date: date
+    priority: Optional[str] = "Medium"
+
+class MaterialRequestApprove(BaseModel):
+    comments: Optional[str] = None
+
+class MaterialRequestReject(BaseModel):
+    comments: Optional[str] = None
+
+
+# ---------------- PURCHASE ORDERS ----------------
+
+class PurchaseOrderCreate(BaseModel):
+    vendor_id: int
+    project_id: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    unit_price: float = Field(gt=0)
+    expected_delivery_date: Optional[date] = None
+    request_id: Optional[int] = None
+    po_number: Optional[str] = None
+
+class PurchaseOrderUpdate(BaseModel):
+    status: Optional[str] = None
+    unit_price: Optional[float] = None
+    quantity: Optional[int] = None
+    expected_delivery_date: Optional[date] = None
+
+
+# ---------------- INVOICES ----------------
+
+class InvoiceCreate(BaseModel):
+    vendor_id: int
+    purchase_order_id: int
+    amount: float = Field(gt=0)
+    gst: Optional[float] = 0.0
+    invoice_date: date
+    invoice_no: Optional[str] = None
+
+class InvoicePaymentUpdate(BaseModel):
+    payment_status: str
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    is_read: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
