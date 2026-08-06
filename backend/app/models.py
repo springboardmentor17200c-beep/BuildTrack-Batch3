@@ -36,6 +36,8 @@ class ProcurementStatusEnum(PyEnum):
     Ordered = "Ordered"
     Delivered = "Delivered"
     Cancelled = "Cancelled"
+    Rejected = "Rejected"
+
 
 
 class NotificationTypeEnum(PyEnum):
@@ -412,3 +414,72 @@ class Document(Base):
         "User",
         back_populates="documents"
     )
+
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_name = Column(String(100), nullable=False)
+    contact_person = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(100), nullable=True)
+    address = Column(Text, nullable=True)
+    materials = Column(String(255), nullable=True)
+    rating = Column(Float, default=5.0)
+    is_active = Column(Boolean, default=True)
+
+
+class MaterialRequest(Base):
+    __tablename__ = "material_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
+    material_name = Column(String(100), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    required_date = Column(Date, nullable=False)
+    priority = Column(String(20), default="Medium")
+    status = Column(String(20), default="Pending")
+    comments = Column(Text, nullable=True)
+    requested_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project")
+    requester = relationship("User")
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    po_number = Column(String(50), unique=True, index=True, nullable=False)
+    vendor_id = Column(Integer, ForeignKey("vendors.id"), index=True)
+    request_id = Column(Integer, ForeignKey("material_requests.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
+    material_name = Column(String(100), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Float, nullable=False, default=0.0)
+    total_amount = Column(Float, nullable=False, default=0.0)
+    expected_delivery_date = Column(Date, nullable=True)
+    status = Column(String(30), default="Created")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    vendor = relationship("Vendor")
+    request = relationship("MaterialRequest")
+    project = relationship("Project")
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_no = Column(String(50), unique=True, index=True, nullable=False)
+    vendor_id = Column(Integer, ForeignKey("vendors.id"), index=True)
+    purchase_order_id = Column(Integer, ForeignKey("purchase_orders.id"), index=True)
+    amount = Column(Float, nullable=False, default=0.0)
+    gst = Column(Float, nullable=False, default=0.0)
+    invoice_date = Column(Date, nullable=False)
+    payment_status = Column(String(30), default="Pending")
+
+    vendor = relationship("Vendor")
+    purchase_order = relationship("PurchaseOrder")

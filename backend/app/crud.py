@@ -1,7 +1,8 @@
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import hash_password
-from app import models
+
 
 
 # ======================================================
@@ -1190,11 +1191,215 @@ def admin_dashboard(db):
         "total_projects": db.query(models.Project).count(),
         "total_workers": db.query(models.Worker).count(),
         "total_inventory": db.query(models.Inventory).count(),
-        "pending_procurements": db.query(models.Procurement)
-            .filter(models.Procurement.status == "Pending")
-            .count(),
         "completed_projects": db.query(models.Project)
             .filter(models.Project.status == "Completed")
             .count(),
         "notifications": db.query(models.Notification).count()
     }
+
+
+# ======================================================
+# VENDOR CRUD
+# ======================================================
+
+def create_vendor(db: Session, vendor: schemas.VendorCreate):
+    db_vendor = models.Vendor(
+        vendor_name=vendor.vendor_name,
+        contact_person=vendor.contact_person,
+        phone=vendor.phone,
+        email=vendor.email,
+        address=vendor.address,
+        materials=vendor.materials,
+        rating=vendor.rating or 5.0,
+        is_active=vendor.is_active if vendor.is_active is not None else True
+    )
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
+
+def get_vendors(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Vendor).offset(skip).limit(limit).all()
+
+def get_vendor(db: Session, vendor_id: int):
+    return db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+
+def update_vendor(db: Session, vendor_id: int, vendor: schemas.VendorUpdate):
+    db_vendor = get_vendor(db, vendor_id)
+    if not db_vendor:
+        return None
+    for key, val in vendor.dict(exclude_unset=True).items():
+        setattr(db_vendor, key, val)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
+
+def delete_vendor(db: Session, vendor_id: int):
+    db_vendor = get_vendor(db, vendor_id)
+    if not db_vendor:
+        return None
+    db.delete(db_vendor)
+    db.commit()
+    return db_vendor
+
+
+# ======================================================
+# MATERIAL REQUEST CRUD
+# ======================================================
+
+def create_material_request(db: Session, request: schemas.MaterialRequestCreate, user_id: Optional[int] = None):
+    db_request = models.MaterialRequest(
+        project_id=request.project_id,
+        material_name=request.material_name,
+        quantity=request.quantity,
+        required_date=request.required_date,
+        priority=request.priority or "Medium",
+        status="Pending",
+        requested_by=user_id
+    )
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+    return db_request
+
+def get_material_requests(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.MaterialRequest).order_by(models.MaterialRequest.id.desc()).offset(skip).limit(limit).all()
+
+def get_material_request(db: Session, request_id: int):
+    return db.query(models.MaterialRequest).filter(models.MaterialRequest.id == request_id).first()
+
+def approve_material_request(db: Session, request_id: int, comments: Optional[str] = None):
+    db_request = get_material_request(db, request_id)
+    if not db_request:
+        return None
+    db_request.status = "Approved"
+    if comments:
+        db_request.comments = comments
+    db.commit()
+    db.refresh(db_request)
+    return db_request
+
+def reject_material_request(db: Session, request_id: int, comments: Optional[str] = None):
+    db_request = get_material_request(db, request_id)
+    if not db_request:
+        return None
+    db_request.status = "Rejected"
+    if comments:
+        db_request.comments = comments
+    db.commit()
+    db.refresh(db_request)
+    return db_request
+
+
+# ======================================================
+# PURCHASE ORDER CRUD
+# ======================================================
+
+def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
+    import time
+    po_no = po.po_number or f"PO-{int(time.time())}"
+    total = po.quantity * po.unit_price
+
+    db_po = models.PurchaseOrder(
+        po_number=po_no,
+        vendor_id=po.vendor_id,
+        request_id=po.request_id,
+        project_id=po.project_id,
+        material_name=po.material_name,
+        quantity=po.quantity,
+        unit_price=po.unit_price,
+        total_amount=total,
+        expected_delivery_date=po.expected_delivery_date,
+        status="Created"
+    )
+    db.add(db_po)
+    db.commit()
+    db.refresh(db_po)
+    return db_po
+
+def get_purchase_orders(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).offset(skip).limit(limit).all()
+
+def get_purchase_order(db: Session, po_id: int):
+    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+
+def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOrderUpdate):
+    db_po = get_purchase_order(db, po_id)
+    if not db_po:
+        return None
+    for key, val in po_update.dict(exclude_unset=True).items():
+        setattr(db_po, key, val)
+    if po_update.quantity is not None or po_update.unit_price is not None:
+        db_po.total_amount = db_po.quantity * db_po.unit_price
+    db.commit()
+    db.refresh(db_po)
+    return db_po
+
+def receive_material_delivery(db: Session, po_id: int, received_quantity: Optional[int] = None, status: str = "Received"):
+    db_po = get_purchase_order(db, po_id)
+    if not db_po:
+        return None
+
+    qty_received = received_quantity if received_quantity is not None else db_po.quantity
+    db_po.status = status
+
+    # Automatically increase inventory stock for the project!
+    existing_inventory = db.query(models.Inventory).filter(
+        models.Inventory.project_id == db_po.project_id,
+        models.Inventory.material_name.ilike(db_po.material_name)
+    ).first()
+
+    if existing_inventory:
+        existing_inventory.quantity += qty_received
+    else:
+        new_inv = models.Inventory(
+            project_id=db_po.project_id,
+            material_name=db_po.material_name,
+            quantity=qty_received,
+            unit="Bags",
+            minimum_stock=10,
+            supplier=db_po.vendor.vendor_name if db_po.vendor else "Vendor"
+        )
+        db.add(new_inv)
+
+    db.commit()
+    db.refresh(db_po)
+    return db_po
+
+
+# ======================================================
+# INVOICE CRUD
+# ======================================================
+
+def create_invoice(db: Session, invoice: schemas.InvoiceCreate):
+    import time
+    inv_no = invoice.invoice_no or f"INV-{int(time.time())}"
+
+    db_inv = models.Invoice(
+        invoice_no=inv_no,
+        vendor_id=invoice.vendor_id,
+        purchase_order_id=invoice.purchase_order_id,
+        amount=invoice.amount,
+        gst=invoice.gst or 0.0,
+        invoice_date=invoice.invoice_date,
+        payment_status="Pending"
+    )
+    db.add(db_inv)
+    db.commit()
+    db.refresh(db_inv)
+    return db_inv
+
+def get_invoices(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Invoice).order_by(models.Invoice.id.desc()).offset(skip).limit(limit).all()
+
+def get_invoice(db: Session, invoice_id: int):
+    return db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+
+def update_invoice_payment(db: Session, invoice_id: int, payment_status: str):
+    db_inv = get_invoice(db, invoice_id)
+    if not db_inv:
+        return None
+    db_inv.payment_status = payment_status
+    db.commit()
+    db.refresh(db_inv)
+    return db_inv
