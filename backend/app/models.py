@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
@@ -116,9 +116,9 @@ class Notification(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     notification_type = Column(
-        SAEnum(NotificationType, name="notificationtype"),
+        String(50),
         nullable=False,
-        default=NotificationType.SYSTEM_NOTIFICATION
+        default="System Notification"
     )
     title = Column(String(150))
     message = Column(Text)
