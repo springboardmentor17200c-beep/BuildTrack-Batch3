@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel, EmailStr, constr, Field
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from enum import Enum
 
@@ -9,6 +10,7 @@ class ProjectStatus(str, Enum):
     Completed = "Completed"
 
 class AttendanceStatus(str, Enum):
+
     Present = "Present"
     Absent = "Absent"
     OnLeave = "On Leave"
@@ -294,4 +296,17 @@ class InvoiceCreate(BaseModel):
     invoice_no: Optional[str] = None
 
 class InvoicePaymentUpdate(BaseModel):
-    payment_status: str
+    payment_status: str
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    is_read: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
