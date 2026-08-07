@@ -68,7 +68,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(150), nullable=False)
+    project_name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     location = Column(String(200), nullable=False)
     budget = Column(Float, nullable=False)
@@ -76,6 +76,7 @@ class Project(Base):
     end_date = Column(Date, nullable=False)
     status = Column(Enum(ProjectStatusEnum), default=ProjectStatusEnum.Pending, nullable=False)
     manager_id = Column(Integer, ForeignKey("users.id"), index=True)
+
 
     manager = relationship("User", back_populates="projects")
     milestones = relationship("ProjectMilestone", back_populates="project", cascade="all, delete-orphan")
