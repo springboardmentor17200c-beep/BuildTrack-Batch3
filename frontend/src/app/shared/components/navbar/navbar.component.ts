@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+﻿import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatMenuModule } from '@angular/material/menu';
@@ -226,11 +226,12 @@ export class NavbarComponent implements OnInit {
 
   switchRole(role: string): void {
     if (this.currentUser) {
-      const updatedUser: User = { ...this.currentUser, role };
-      this.authService.setCurrentUser(updatedUser);
-      this.redirectToDashboard(role);
+      this.authService.switchRole(role).subscribe(() => {
+        this.redirectToDashboard(role);
+      });
     }
   }
+
 
   redirectToDashboard(role: string): void {
     switch (role) {
