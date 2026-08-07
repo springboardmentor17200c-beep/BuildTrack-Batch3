@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatMenuModule } from '@angular/material/menu';
@@ -85,6 +85,9 @@ import { NotificationService, Notification } from '../../../core/services/notifi
               <button mat-menu-item (click)="switchRole('Site Engineer')">Site Engineer</button>
               <button mat-menu-item (click)="switchRole('Contractor')">Contractor</button>
               <button mat-menu-item (click)="switchRole('Client')">Client</button>
+              <button mat-menu-item (click)="switchRole('Store Manager')">Store Manager</button>
+              <button mat-menu-item (click)="switchRole('Finance')">Finance</button>
+              <button mat-menu-item (click)="switchRole('Vendor')">Vendor</button>
             </mat-menu>
           </div>
 
@@ -113,6 +116,9 @@ import { NotificationService, Notification } from '../../../core/services/notifi
                 <button mat-menu-item (click)="switchRole('Site Engineer')"><span class="text-sm">Site Engineer</span></button>
                 <button mat-menu-item (click)="switchRole('Contractor')"><span class="text-sm">Contractor</span></button>
                 <button mat-menu-item (click)="switchRole('Client')"><span class="text-sm">Client</span></button>
+                <button mat-menu-item (click)="switchRole('Store Manager')"><span class="text-sm">Store Manager</span></button>
+                <button mat-menu-item (click)="switchRole('Finance')"><span class="text-sm">Finance</span></button>
+                <button mat-menu-item (click)="switchRole('Vendor')"><span class="text-sm">Vendor</span></button>
               </div>
 
               <button mat-menu-item (click)="onLogout()">
@@ -226,9 +232,9 @@ export class NavbarComponent implements OnInit {
 
   switchRole(role: string): void {
     if (this.currentUser) {
-      this.authService.switchRole(role).subscribe(() => {
-        this.redirectToDashboard(role);
-      });
+      const updatedUser: User = { ...this.currentUser, role };
+      this.authService.setCurrentUser(updatedUser);
+      this.redirectToDashboard(role);
     }
   }
 
@@ -249,6 +255,15 @@ export class NavbarComponent implements OnInit {
         break;
       case 'Client':
         this.router.navigate(['/dashboard/client']);
+        break;
+      case 'Store Manager':
+        this.router.navigate(['/dashboard/store-manager']);
+        break;
+      case 'Finance':
+        this.router.navigate(['/dashboard/finance']);
+        break;
+      case 'Vendor':
+        this.router.navigate(['/dashboard/vendor']);
         break;
       default:
         this.router.navigate(['/login']);

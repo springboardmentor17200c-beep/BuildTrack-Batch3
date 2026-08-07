@@ -8,6 +8,13 @@ import { ManagerDashboardComponent } from './features/dashboards/manager/manager
 import { EngineerDashboardComponent } from './features/dashboards/engineer/engineer-dashboard.component';
 import { ContractorDashboardComponent } from './features/dashboards/contractor/contractor-dashboard.component';
 import { ClientDashboardComponent } from './features/dashboards/client/client-dashboard.component';
+
+// Dashboards
+import { StoreManagerDashboardComponent } from './features/dashboards/store-manager/store-manager-dashboard.component';
+import { FinanceDashboardComponent } from './features/dashboards/finance/finance-dashboard.component';
+import { VendorPortalComponent } from './features/vendor-portal/vendor-portal.component';
+
+// Feature Components
 import { ProjectListComponent } from './features/projects/project-list.component';
 import { ProjectDetailsComponent } from './features/projects/project-details.component';
 import { ResourceManagementComponent } from './features/resources/resource-management.component';
@@ -18,6 +25,14 @@ import { ProcurementComponent } from './features/procurement/procurement.compone
 import { NotificationsComponent } from './features/notifications/notifications.component';
 import { ReportsComponent } from './features/reports/reports.component';
 import { DocumentsComponent } from './features/documents/documents.component';
+
+import { MaterialRequestsComponent } from './features/material-requests/material-requests.component';
+import { VendorManagementComponent } from './features/vendor-management/vendor-management.component';
+import { PurchaseOrdersComponent } from './features/purchase-orders/purchase-orders.component';
+import { DeliveriesComponent } from './features/deliveries/deliveries.component';
+import { InvoicesComponent } from './features/invoices/invoices.component';
+import { PaymentsComponent } from './features/payments/payments.component';
+
 import { AuthGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -58,6 +73,21 @@ export const routes: Routes = [
         component: ClientDashboardComponent, 
         data: { roles: ['Client'] } 
       },
+      { 
+        path: 'dashboard/store-manager', 
+        component: StoreManagerDashboardComponent, 
+        data: { roles: ['Admin', 'Store Manager'] } 
+      },
+      { 
+        path: 'dashboard/finance', 
+        component: FinanceDashboardComponent, 
+        data: { roles: ['Admin', 'Finance'] } 
+      },
+      { 
+        path: 'dashboard/vendor', 
+        component: VendorPortalComponent, 
+        data: { roles: ['Admin', 'Vendor'] } 
+      },
 
       // Feature Modules
       { 
@@ -78,12 +108,12 @@ export const routes: Routes = [
       { 
         path: 'inventory', 
         component: InventoryComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Contractor'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Contractor', 'Store Manager'] } 
       },
       { 
         path: 'procurement', 
         component: ProcurementComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Contractor'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Contractor', 'Store Manager'] } 
       },
       { 
         path: 'workforce', 
@@ -98,17 +128,17 @@ export const routes: Routes = [
       { 
         path: 'notifications', 
         component: NotificationsComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker', 'Store Manager', 'Finance', 'Vendor'] } 
       },
       { 
         path: 'reports', 
         component: ReportsComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Finance'] } 
       },
       { 
         path: 'documents', 
         component: DocumentsComponent, 
-        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker'] } 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Contractor', 'Client', 'Worker', 'Store Manager', 'Vendor'] } 
       },
       { 
         path: 'analytics', 
@@ -116,10 +146,42 @@ export const routes: Routes = [
         data: { roles: ['Admin', 'Project Manager', 'Client'] } 
       },
 
+      // Procurement Workflow Pages
+      { 
+        path: 'requests', 
+        component: MaterialRequestsComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Site Engineer', 'Store Manager'] } 
+      },
+      { 
+        path: 'vendors', 
+        component: VendorManagementComponent, 
+        data: { roles: ['Admin', 'Project Manager'] } 
+      },
+      { 
+        path: 'purchase-orders', 
+        component: PurchaseOrdersComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Vendor'] } 
+      },
+      { 
+        path: 'deliveries', 
+        component: DeliveriesComponent, 
+        data: { roles: ['Admin', 'Store Manager', 'Site Engineer'] } 
+      },
+      { 
+        path: 'invoices', 
+        component: InvoicesComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Finance', 'Vendor', 'Contractor'] } 
+      },
+      { 
+        path: 'payments', 
+        component: PaymentsComponent, 
+        data: { roles: ['Admin', 'Finance'] } 
+      },
+
       // Default fallback redirect inside authenticated view
       { 
         path: '', 
-        redirectTo: 'dashboard/manager', 
+        redirectTo: 'dashboard/admin', 
         pathMatch: 'full' 
       }
     ]

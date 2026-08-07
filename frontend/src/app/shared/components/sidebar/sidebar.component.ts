@@ -190,6 +190,9 @@ export class SidebarComponent implements OnInit {
       case 'Contractor': return '/dashboard/contractor';
       case 'Client': return '/dashboard/client';
       case 'Worker': return '/dashboard/engineer';
+      case 'Store Manager': return '/dashboard/store-manager';
+      case 'Finance': return '/dashboard/finance';
+      case 'Vendor': return '/dashboard/vendor';
       default: return '/login';
     }
   }
@@ -204,7 +207,13 @@ export class SidebarComponent implements OnInit {
       notifications: { label: 'Notifications', route: '/notifications', icon: 'notifications' },
       reports: { label: 'Reports', route: '/reports', icon: 'picture_as_pdf' },
       documents: { label: 'Documents', route: '/documents', icon: 'folder' },
-      analytics: { label: 'Analytics', route: '/analytics', icon: 'analytics' }
+      analytics: { label: 'Analytics', route: '/analytics', icon: 'analytics' },
+      requests: { label: 'Material Requests', route: '/requests', icon: 'description' },
+      vendors: { label: 'Vendors', route: '/vendors', icon: 'storefront' },
+      purchaseOrders: { label: 'Purchase Orders', route: '/purchase-orders', icon: 'shopping_bag' },
+      deliveries: { label: 'Deliveries', route: '/deliveries', icon: 'local_shipping' },
+      invoices: { label: 'Invoices', route: '/invoices', icon: 'receipt' },
+      payments: { label: 'Payments', route: '/payments', icon: 'payments' }
     };
 
     switch (role) {
@@ -214,6 +223,12 @@ export class SidebarComponent implements OnInit {
           allItems['resources'],
           allItems['inventory'],
           allItems['procurement'],
+          allItems['requests'],
+          allItems['vendors'],
+          allItems['purchaseOrders'],
+          allItems['deliveries'],
+          allItems['invoices'],
+          allItems['payments'],
           allItems['attendance'],
           allItems['notifications'],
           allItems['reports'],
@@ -225,7 +240,10 @@ export class SidebarComponent implements OnInit {
           allItems['projects'],
           allItems['resources'],
           allItems['inventory'],
-          allItems['procurement'],
+          allItems['requests'],
+          allItems['vendors'],
+          allItems['purchaseOrders'],
+          allItems['invoices'],
           allItems['attendance'],
           allItems['notifications'],
           allItems['reports'],
@@ -235,6 +253,8 @@ export class SidebarComponent implements OnInit {
       case 'Site Engineer':
         return [
           allItems['projects'],
+          allItems['requests'],
+          allItems['deliveries'],
           allItems['attendance'],
           allItems['notifications'],
           allItems['reports'],
@@ -245,6 +265,7 @@ export class SidebarComponent implements OnInit {
           allItems['resources'],
           allItems['inventory'],
           allItems['procurement'],
+          allItems['invoices'],
           allItems['notifications'],
           allItems['reports'],
           allItems['documents']
@@ -255,6 +276,28 @@ export class SidebarComponent implements OnInit {
           allItems['reports'],
           allItems['documents'],
           allItems['analytics']
+        ];
+      case 'Store Manager':
+        return [
+          allItems['inventory'],
+          allItems['requests'],
+          allItems['deliveries'],
+          allItems['notifications'],
+          allItems['documents']
+        ];
+      case 'Finance':
+        return [
+          allItems['invoices'],
+          allItems['payments'],
+          allItems['reports'],
+          allItems['notifications']
+        ];
+      case 'Vendor':
+        return [
+          allItems['purchaseOrders'],
+          allItems['invoices'],
+          allItems['notifications'],
+          allItems['documents']
         ];
       case 'Worker':
         return [
