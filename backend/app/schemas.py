@@ -182,23 +182,23 @@ class ProcurementUpdate(BaseModel):
     status: Optional[str] = None
     purchase_date: Optional[date] = None
 
-
-
-
 # ---------------- NOTIFICATIONS ----------------
 
 class NotificationCreate(BaseModel):
     user_id: int
+    notification_type: Optional[str] = "System Notification"
     title: str
     message: str
 
 
 class NotificationUpdate(BaseModel):
+    notification_type: Optional[str] = None
     title: Optional[str] = None
     message: Optional[str] = None
 
 
 # ---------------- REPORTS ----------------
+
 
 class ReportCreate(BaseModel):
     project_id: int
@@ -302,6 +302,7 @@ class InvoicePaymentUpdate(BaseModel):
 class NotificationResponse(BaseModel):
     id: int
     user_id: int
+    notification_type: Optional[str] = "System Notification"
     title: str
     message: str
     is_read: bool
@@ -309,4 +310,5 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 

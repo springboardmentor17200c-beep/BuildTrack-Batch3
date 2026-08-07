@@ -68,7 +68,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(150), nullable=False)
+    project_name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     location = Column(String(200), nullable=False)
     budget = Column(Float, nullable=False)
@@ -76,6 +76,7 @@ class Project(Base):
     end_date = Column(Date, nullable=False)
     status = Column(Enum(ProjectStatusEnum), default=ProjectStatusEnum.Pending, nullable=False)
     manager_id = Column(Integer, ForeignKey("users.id"), index=True)
+
 
     manager = relationship("User", back_populates="projects")
     milestones = relationship("ProjectMilestone", back_populates="project", cascade="all, delete-orphan")
@@ -175,13 +176,14 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    notification_type = Column(String(50), default="System Notification")
     title = Column(String(150))
     message = Column(Text)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    type = Column(Enum(NotificationTypeEnum), default=NotificationTypeEnum.General)
 
     user = relationship("User", back_populates="notifications")
+
 
 class Report(Base):
     __tablename__ = "reports"
