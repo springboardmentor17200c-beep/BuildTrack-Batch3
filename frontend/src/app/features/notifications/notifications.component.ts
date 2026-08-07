@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { NotificationService } from '../../core/services/notification.service';
-import { NotificationItem } from '../../core/interfaces/notification.interface';
+import { NotificationService, Notification } from '../../core/services/notification.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ToastComponent } from '../../shared/components/toast/toast.component';
 
@@ -34,31 +33,38 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
               </button>
               
               <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
-                      [class.btn-bt-primary]="activeFilter === 'Inventory'" [class.btn-light]="activeFilter !== 'Inventory'"
-                      (click)="setFilter('Inventory')">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">inventory_2</mat-icon>
-                <span>Inventory Alerts</span>
+                      [class.btn-bt-primary]="activeFilter === 'Procurement Alert'" [class.btn-light]="activeFilter !== 'Procurement Alert'"
+                      (click)="setFilter('Procurement Alert')">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">shopping_cart</mat-icon>
+                <span>Procurement Alerts</span>
               </button>
 
               <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
-                      [class.btn-bt-primary]="activeFilter === 'Procurement'" [class.btn-light]="activeFilter !== 'Procurement'"
-                      (click)="setFilter('Procurement')">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">receipt_long</mat-icon>
-                <span>Procurement Orders</span>
-              </button>
-
-              <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
-                      [class.btn-bt-primary]="activeFilter === 'Project'" [class.btn-light]="activeFilter !== 'Project'"
-                      (click)="setFilter('Project')">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">business</mat-icon>
+                      [class.btn-bt-primary]="activeFilter === 'Project Update'" [class.btn-light]="activeFilter !== 'Project Update'"
+                      (click)="setFilter('Project Update')">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">update</mat-icon>
                 <span>Project Updates</span>
               </button>
 
               <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
-                      [class.btn-bt-primary]="activeFilter === 'Worker'" [class.btn-light]="activeFilter !== 'Worker'"
-                      (click)="setFilter('Worker')">
-                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">badge</mat-icon>
-                <span>Workforce logs</span>
+                      [class.btn-bt-primary]="activeFilter === 'Task Assignment'" [class.btn-light]="activeFilter !== 'Task Assignment'"
+                      (click)="setFilter('Task Assignment')">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">assignment</mat-icon>
+                <span>Task Assignments</span>
+              </button>
+
+              <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
+                      [class.btn-bt-primary]="activeFilter === 'Attendance Alert'" [class.btn-light]="activeFilter !== 'Attendance Alert'"
+                      (click)="setFilter('Attendance Alert')">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">event_available</mat-icon>
+                <span>Attendance Alerts</span>
+              </button>
+
+              <button class="btn text-start d-flex align-items-center gap-2 py-2 px-3 rounded text-sm w-100"
+                      [class.btn-bt-primary]="activeFilter === 'Deadline Notification'" [class.btn-light]="activeFilter !== 'Deadline Notification'"
+                      (click)="setFilter('Deadline Notification')">
+                <mat-icon style="font-size: 18px; width: 18px; height: 18px;">alarm</mat-icon>
+                <span>Deadlines</span>
               </button>
             </div>
 
@@ -89,23 +95,23 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
 
             <div class="d-flex flex-column gap-2">
               <div *ngFor="let item of filteredNotifications" class="alert-item d-flex gap-3 p-3 rounded border align-items-start transition"
-                   [class.bg-light-yellow]="!item.isRead" [style.border-left-color]="getLeftColor(item.type)">
+                   [class.bg-light-yellow]="!item.is_read" [style.border-left-color]="getLeftColor(item.notification_type)">
                 <!-- Icon mapping -->
-                <div class="icon-indicator p-2 rounded bg-light" [style.color]="getLeftColor(item.type)">
-                  <mat-icon>{{ getIcon(item.type) }}</mat-icon>
+                <div class="icon-indicator p-2 rounded bg-light" [style.color]="getLeftColor(item.notification_type)">
+                  <mat-icon>{{ getIcon(item.notification_type) }}</mat-icon>
                 </div>
 
                 <div class="flex-grow-1">
                   <div class="d-flex justify-content-between align-items-start">
-                    <h6 class="fw-bold text-sm mb-1 text-slate-800" [class.fw-extrabold]="!item.isRead">{{ item.title }}</h6>
-                    <span class="text-xxs text-muted text-nowrap">{{ item.createdAt | date:'short' }}</span>
+                    <h6 class="fw-bold text-sm mb-1 text-slate-800" [class.fw-extrabold]="!item.is_read">{{ item.title }}</h6>
+                    <span class="text-xxs text-muted text-nowrap">{{ item.created_at | date:'short' }}</span>
                   </div>
                   <p class="text-xs text-muted mb-0">{{ item.message }}</p>
                 </div>
 
                 <!-- Actions -->
                 <div class="d-flex align-items-center gap-1">
-                  <button *ngIf="!item.isRead" class="btn btn-link text-success p-1" title="Mark as read" (click)="markRead(item.id)">
+                  <button *ngIf="!item.is_read" class="btn btn-link text-success p-1" title="Mark as read" (click)="markRead(item.id)">
                     <mat-icon style="font-size: 18px; width: 18px; height: 18px;">check</mat-icon>
                   </button>
                   <button class="btn btn-link text-danger p-1" title="Delete alert" (click)="deleteAlert(item.id)">
@@ -144,8 +150,8 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
   `]
 })
 export class NotificationsComponent implements OnInit {
-  notifications: NotificationItem[] = [];
-  filteredNotifications: NotificationItem[] = [];
+  notifications: Notification[] = [];
+  filteredNotifications: Notification[] = [];
   activeFilter: string = '';
   unreadCount = 0;
 
@@ -175,12 +181,12 @@ export class NotificationsComponent implements OnInit {
     if (!this.activeFilter) {
       this.filteredNotifications = this.notifications;
     } else {
-      this.filteredNotifications = this.notifications.filter(n => n.type === this.activeFilter);
+      this.filteredNotifications = this.notifications.filter(n => n.notification_type === this.activeFilter);
     }
   }
 
   calculateStats(): void {
-    this.unreadCount = this.notifications.filter(n => !n.isRead).length;
+    this.unreadCount = this.notifications.filter(n => !n.is_read).length;
   }
 
   markRead(id: number): void {
@@ -193,7 +199,7 @@ export class NotificationsComponent implements OnInit {
   }
 
   markAllAsRead(): void {
-    const unreadList = this.notifications.filter(n => !n.isRead);
+    const unreadList = this.notifications.filter(n => !n.is_read);
     if (unreadList.length === 0) return;
 
     // Trigger marks
@@ -217,21 +223,25 @@ export class NotificationsComponent implements OnInit {
 
   getIcon(type: string): string {
     switch (type) {
-      case 'Inventory': return 'inventory_2';
-      case 'Procurement': return 'receipt_long';
-      case 'Project': return 'business';
-      case 'Worker': return 'badge';
-      default: return 'info';
+      case 'Project Update':        return 'update';
+      case 'Task Assignment':       return 'assignment';
+      case 'Procurement Alert':     return 'shopping_cart';
+      case 'Attendance Alert':      return 'event_available';
+      case 'Deadline Notification': return 'alarm';
+      case 'System Notification':   return 'info';
+      default:                      return 'notifications';
     }
   }
 
   getLeftColor(type: string): string {
     switch (type) {
-      case 'Inventory': return '#ef4444'; // Red
-      case 'Procurement': return '#06b6d4'; // Info
-      case 'Project': return '#ff7a00'; // Primary
-      case 'Worker': return '#10b981'; // Green
-      default: return '#64748b'; // Gray
+      case 'Project Update':        return '#3b82f6'; // Blue
+      case 'Task Assignment':       return '#06b6d4'; // Cyan
+      case 'Procurement Alert':     return '#ff7a00'; // Orange
+      case 'Attendance Alert':      return '#10b981'; // Green
+      case 'Deadline Notification': return '#ef4444'; // Red
+      case 'System Notification':   return '#64748b'; // Gray
+      default:                      return '#94a3b8';
     }
   }
 }

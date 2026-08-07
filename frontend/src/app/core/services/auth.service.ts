@@ -96,6 +96,11 @@ export class AuthService {
     return of(true);
   }
 
+  setCurrentUser(user: User): void {
+    localStorage.setItem('bt_user', JSON.stringify(user));
+    this.currentUserSubject.next(user);
+  }
+
   logout(): void {
     localStorage.removeItem('bt_user');
     localStorage.removeItem('bt_token');
