@@ -175,13 +175,14 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    notification_type = Column(String(50), default="System Notification")
     title = Column(String(150))
     message = Column(Text)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    type = Column(Enum(NotificationTypeEnum), default=NotificationTypeEnum.General)
 
     user = relationship("User", back_populates="notifications")
+
 
 class Report(Base):
     __tablename__ = "reports"

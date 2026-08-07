@@ -680,6 +680,7 @@ def create_notification(db: Session, notification: schemas.NotificationCreate):
 
     db_notification = models.Notification(
         user_id=notification.user_id,
+        notification_type=notification.notification_type or "System Notification",
         title=notification.title,
         message=notification.message
     )
@@ -702,6 +703,16 @@ def get_notifications(
         .limit(limit)
         .all()
     )
+
+
+def get_notifications_by_user(db: Session, user_id: int):
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == user_id)
+        .order_by(models.Notification.id.desc())
+        .all()
+    )
+
 
 
 def get_notification(db: Session, notification_id: int):
