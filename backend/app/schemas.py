@@ -1,7 +1,19 @@
-from pydantic import BaseModel, EmailStr
+
+from pydantic import BaseModel, EmailStr, constr, Field
 from datetime import date, datetime
 from typing import Optional
 from enum import Enum
+
+class ProjectStatus(str, Enum):
+    Pending = "Pending"
+    Running = "Running"
+    Completed = "Completed"
+
+class AttendanceStatus(str, Enum):
+
+    Present = "Present"
+    Absent = "Absent"
+    OnLeave = "On Leave"
 
 
 # ---------------- USERS ----------------
@@ -11,7 +23,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     role: str
-    phone: Optional[str] = None
+    phone: Optional[constr(pattern=r'^\d{10}$')] = None
 
 
 class UserLogin(BaseModel):
@@ -19,17 +31,37 @@ class UserLogin(BaseModel):
     password: str
 
 
+
+
 # ---------------- PROJECTS ----------------
 
-class ProjectCreate(BaseModel):
+class ProjectBase(BaseModel):
     project_name: str
     description: Optional[str] = None
     location: str
-    budget: float
+    budget: float = Field(gt=0)
     start_date: date
     end_date: date
-    status: str
+    status: ProjectStatus
     manager_id: int
+
+
+class ProjectCreate(ProjectBase):
+    pass
+
+
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    location: Optional[str] = None
+    budget: Optional[float] = None
+    status: Optional[ProjectStatus] = None
+
+
+class ProjectResponse(ProjectCreate):
+    id: int
+
+    class Config:
+        from_attributes = True
 
 
 # ---------------- MILESTONES ----------------
@@ -42,28 +74,48 @@ class MilestoneCreate(BaseModel):
     status: str
 
 
+class MilestoneUpdate(BaseModel):
+    milestone_name: Optional[str] = None
+    due_date: Optional[date] = None
+    completed_date: Optional[date] = None
+    status: Optional[str] = None
+
+
+
 # ---------------- RESOURCES ----------------
 
 class ResourceCreate(BaseModel):
     project_id: int
     resource_name: str
     category: str
-    quantity: int
+    quantity: int = Field(gt=0)
     status: str
 
+class ResourceUpdate(BaseModel):
+    resource_name: Optional[str] = None
+    category: Optional[str] = None
+    quantity: Optional[int] = None
+    status: Optional[str] = None
 
 # ---------------- INVENTORY ----------------
 
 class InventoryCreate(BaseModel):
     project_id: int
     material_name: str
-    quantity: int
+    category: str = "Cement"
     unit: str
-    minimum_stock: int
     supplier: str
+    quantity: int = Field(gt=0)
+    minimum_stock: int = Field(ge=0)
 
-class InventoryUpdate(InventoryCreate):
-    pass
+
+class InventoryUpdate(BaseModel):
+    material_name: Optional[str] = None
+    unit: Optional[str] = None
+    supplier: Optional[str] = None
+    quantity: Optional[int] = None
+    minimum_stock: Optional[int] = None
+
 
 
 # ---------------- WORKERS ----------------
@@ -71,12 +123,16 @@ class InventoryUpdate(InventoryCreate):
 class WorkerCreate(BaseModel):
     project_id: int
     name: str
-    phone: str
+    phone: Optional[constr(pattern=r'^\d{10}$')] = None
     designation: str
-    salary: float
+    salary: float = Field(gt=0)
 
-class WorkerUpdate(WorkerCreate):
-    pass
+
+class WorkerUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    designation: Optional[str] = None
+    salary: Optional[float] = None
 
 
 # ---------------- ATTENDANCE ----------------
@@ -85,58 +141,168 @@ class AttendanceCreate(BaseModel):
     worker_id: int
     project_id: int
     attendance_date: date
-    status: str
+    status: AttendanceStatus
     check_in: str
-    check_out: str
+    check_out: str = ""
 
 class AttendanceUpdate(AttendanceCreate):
     pass
 
+class AttendanceUpdate(BaseModel):
+    attendance_date: Optional[date] = None
+    status: Optional[ProjectStatus] = None
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
 
 # ---------------- PROCUREMENT ----------------
 
 class ProcurementCreate(BaseModel):
     project_id: int
     material_name: str
+    category: Optional[str] = "Raw Materials"
     supplier: str
-    quantity: int
-    total_cost: float
+    vendor_contact: Optional[str] = None
+    invoice_number: Optional[str] = None
+    payment_status: Optional[str] = "Pending"
+    quantity: int = Field(gt=0)
+    total_cost: float = Field(gt=0)
+    status: str = "Pending"
     purchase_date: date
-    status: str
 
-class ProcurementUpdate(ProcurementCreate):
-    pass
 
+class ProcurementUpdate(BaseModel):
+    material_name: Optional[str] = None
+    category: Optional[str] = None
+    supplier: Optional[str] = None
+    vendor_contact: Optional[str] = None
+    invoice_number: Optional[str] = None
+    payment_status: Optional[str] = None
+    quantity: Optional[int] = None
+    total_cost: Optional[float] = None
+    status: Optional[str] = None
+    purchase_date: Optional[date] = None
 
 # ---------------- NOTIFICATIONS ----------------
 
-class NotificationType(str, Enum):
-    PROJECT_UPDATE = "Project Update"
-    TASK_ASSIGNMENT = "Task Assignment"
-    PROCUREMENT_ALERT = "Procurement Alert"
-    ATTENDANCE_ALERT = "Attendance Alert"
-    DEADLINE_NOTIFICATION = "Deadline Notification"
-    SYSTEM_NOTIFICATION = "System Notification"
-
-
 class NotificationCreate(BaseModel):
     user_id: int
-    notification_type: NotificationType = NotificationType.SYSTEM_NOTIFICATION
+    notification_type: Optional[str] = "System Notification"
     title: str
     message: str
 
 
 class NotificationUpdate(BaseModel):
-    notification_type: Optional[NotificationType] = None
+    notification_type: Optional[str] = None
     title: Optional[str] = None
     message: Optional[str] = None
-    is_read: Optional[bool] = None
+
+
+# ---------------- REPORTS ----------------
+
+
+class ReportCreate(BaseModel):
+    project_id: int
+    generated_by: int
+    report_type: str
+    report_url: str
+
+
+class ReportUpdate(BaseModel):
+    report_type: Optional[str] = None
+    report_url: Optional[str] = None    
+
+# ---------------- DOCUMENTS ----------------
+
+class DocumentCreate(BaseModel):
+    project_id: int
+    uploaded_by: int
+    file_name: str
+    file_type: str
+    file_path: str
+    description: str | None = None
+
+
+class DocumentUpdate(BaseModel):
+    file_name: str | None = None
+    description: str | None = None
+
+
+# ---------------- VENDORS ----------------
+
+class VendorCreate(BaseModel):
+    vendor_name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    materials: Optional[str] = None
+    rating: Optional[float] = 5.0
+    is_active: Optional[bool] = True
+
+class VendorUpdate(BaseModel):
+    vendor_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    materials: Optional[str] = None
+    rating: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+# ---------------- MATERIAL REQUESTS ----------------
+
+class MaterialRequestCreate(BaseModel):
+    project_id: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    required_date: date
+    priority: Optional[str] = "Medium"
+
+class MaterialRequestApprove(BaseModel):
+    comments: Optional[str] = None
+
+class MaterialRequestReject(BaseModel):
+    comments: Optional[str] = None
+
+
+# ---------------- PURCHASE ORDERS ----------------
+
+class PurchaseOrderCreate(BaseModel):
+    vendor_id: int
+    project_id: int
+    material_name: str
+    quantity: int = Field(gt=0)
+    unit_price: float = Field(gt=0)
+    expected_delivery_date: Optional[date] = None
+    request_id: Optional[int] = None
+    po_number: Optional[str] = None
+
+class PurchaseOrderUpdate(BaseModel):
+    status: Optional[str] = None
+    unit_price: Optional[float] = None
+    quantity: Optional[int] = None
+    expected_delivery_date: Optional[date] = None
+
+
+# ---------------- INVOICES ----------------
+
+class InvoiceCreate(BaseModel):
+    vendor_id: int
+    purchase_order_id: int
+    amount: float = Field(gt=0)
+    gst: Optional[float] = 0.0
+    invoice_date: date
+    invoice_no: Optional[str] = None
+
+class InvoicePaymentUpdate(BaseModel):
+    payment_status: str
 
 
 class NotificationResponse(BaseModel):
     id: int
     user_id: int
-    notification_type: NotificationType
+    notification_type: Optional[str] = "System Notification"
     title: str
     message: str
     is_read: bool
@@ -146,84 +312,3 @@ class NotificationResponse(BaseModel):
         from_attributes = True
 
 
-# ---------------- REPORTS ----------------
-
-class ReportCreate(BaseModel):
-    project_id: int
-    generated_by: int
-    report_type: str
-    report_url: str
-
-class ReportUpdate(ReportCreate):
-    pass
-
-
-# ---------------- DOCUMENTS ----------------
-
-class DocumentCreate(BaseModel):
-    project_id: int
-    title: Optional[str] = None
-    file_url: Optional[str] = None
-    uploaded_by: Optional[int] = None
-
-
-# ---------------- VENDOR / PROCUREMENT EXTRAS ----------------
-
-class VendorCreate(BaseModel):
-    name: str
-    contact: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-
-class VendorUpdate(VendorCreate):
-    pass
-
-class MaterialRequestCreate(BaseModel):
-    project_id: int
-    material_name: str
-    quantity: int
-    requested_by: Optional[int] = None
-    status: Optional[str] = None
-
-class MaterialRequestUpdate(MaterialRequestCreate):
-    pass
-
-class PurchaseOrderCreate(BaseModel):
-    project_id: int
-    vendor_id: Optional[int] = None
-    material_name: str
-    quantity: int
-    total_cost: float
-    status: Optional[str] = None
-
-class PurchaseOrderUpdate(PurchaseOrderCreate):
-    pass
-
-class MaterialDeliveryCreate(BaseModel):
-    project_id: int
-    material_name: str
-    quantity: int
-    delivery_date: Optional[date] = None
-    status: Optional[str] = None
-
-class MaterialDeliveryUpdate(MaterialDeliveryCreate):
-    pass
-
-class InvoiceCreate(BaseModel):
-    project_id: int
-    vendor_id: Optional[int] = None
-    amount: float
-    status: Optional[str] = None
-    invoice_date: Optional[date] = None
-
-class InvoiceUpdate(InvoiceCreate):
-    pass
-
-class PaymentCreate(BaseModel):
-    project_id: int
-    amount: float
-    payment_date: Optional[date] = None
-    status: Optional[str] = None
-
-class PaymentUpdate(PaymentCreate):
-    pass

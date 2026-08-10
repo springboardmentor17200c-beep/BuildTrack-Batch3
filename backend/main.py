@@ -23,9 +23,7 @@ from app.routes import (
     vendors,
     material_requests,
     purchase_orders,
-    material_deliveries,
-    invoices,
-    payments,
+    invoices
 )
 
 Base.metadata.create_all(bind=engine)
@@ -69,6 +67,4 @@ app.include_router(dashboard.router)
 app.include_router(vendors.router)
 app.include_router(material_requests.router)
 app.include_router(purchase_orders.router)
-app.include_router(material_deliveries.router)
 app.include_router(invoices.router)
-app.include_router(payments.router)

@@ -1,119 +1,66 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.database import get_db
 from app import crud, schemas
+from app.auth import get_current_user
+from app.dependencies import require_role
 
 router = APIRouter(
     prefix="/requests",
     tags=["Material Requests"]
 )
 
-
 @router.post("/")
 def create_request(
     request: schemas.MaterialRequestCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    return crud.create_material_request(db, request)
-
+    user_id = current_user.id if hasattr(current_user, 'id') else None
+    return crud.create_material_request(db, request, user_id=user_id)
 
 @router.get("/")
 def get_requests(
-    db: Session = Depends(get_db)
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    return crud.get_material_requests(db)
-
+    return crud.get_material_requests(db, skip, limit)
 
 @router.get("/{request_id}")
 def get_request(
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    request = crud.get_material_request(db, request_id)
-
-    if not request:
-        raise HTTPException(
-            status_code=404,
-            detail="Material Request not found"
-        )
-
-    return request
-
-
-@router.put("/{request_id}")
-def update_request(
-    request_id: int,
-    request: schemas.MaterialRequestUpdate,
-    db: Session = Depends(get_db)
-):
-    updated = crud.update_material_request(
-        db,
-        request_id,
-        request
-    )
-
-    if not updated:
-        raise HTTPException(
-            status_code=404,
-            detail="Material Request not found"
-        )
-
-    return updated
-
+    req = crud.get_material_request(db, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Material request not found")
+    return req
 
 @router.put("/{request_id}/approve")
 def approve_request(
     request_id: int,
-    db: Session = Depends(get_db)
+    payload: schemas.MaterialRequestApprove = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
-    request = crud.approve_material_request(
-        db,
-        request_id
-    )
-
-    if not request:
-        raise HTTPException(
-            status_code=404,
-            detail="Material Request not found"
-        )
-
-    return request
-
+    comments = payload.comments if payload else None
+    approved = crud.approve_material_request(db, request_id, comments=comments)
+    if not approved:
+        raise HTTPException(status_code=404, detail="Material request not found")
+    return approved
 
 @router.put("/{request_id}/reject")
 def reject_request(
     request_id: int,
-    db: Session = Depends(get_db)
+    payload: schemas.MaterialRequestReject = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
-    request = crud.reject_material_request(
-        db,
-        request_id
-    )
-
-    if not request:
-        raise HTTPException(
-            status_code=404,
-            detail="Material Request not found"
-        )
-
-    return request
-
-
-@router.delete("/{request_id}")
-def delete_request(
-    request_id: int,
-    db: Session = Depends(get_db)
-):
-    deleted = crud.delete_material_request(
-        db,
-        request_id
-    )
-
-    if not deleted:
-        raise HTTPException(
-            status_code=404,
-            detail="Material Request not found"
-        )
-
-    return deleted
+    comments = payload.comments if payload else None
+    rejected = crud.reject_material_request(db, request_id, comments=comments)
+    if not rejected:
+        raise HTTPException(status_code=404, detail="Material request not found")
+    return rejected

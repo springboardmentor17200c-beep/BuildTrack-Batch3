@@ -96,6 +96,11 @@ export class AuthService {
     return of(true);
   }
 
+  setCurrentUser(user: User): void {
+    localStorage.setItem('bt_user', JSON.stringify(user));
+    this.currentUserSubject.next(user);
+  }
+
   logout(): void {
     localStorage.removeItem('bt_user');
     localStorage.removeItem('bt_token');
@@ -112,4 +117,16 @@ export class AuthService {
 
     return of(null);
   }
+
+  switchRole(role: string): Observable<User | null> {
+    if (this.currentUserValue) {
+      const updatedUser: User = { ...this.currentUserValue, role };
+      localStorage.setItem('bt_user', JSON.stringify(updatedUser));
+      this.currentUserSubject.next(updatedUser);
+      return of(updatedUser);
+    }
+
+    return of(null);
+  }
 }
+

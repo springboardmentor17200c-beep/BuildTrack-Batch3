@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 export type NotificationType =
   | 'Project Update'
@@ -30,11 +31,54 @@ export class NotificationService {
 
   constructor(private http: HttpClient) {}
 
+<<<<<<< HEAD
   getNotifications(): Observable<AppNotification[]> {
     return this.http.get<AppNotification[]>(this.apiUrl);
   }
 
   markAsRead(id: number): Observable<AppNotification> {
     return this.http.put<AppNotification>(`${this.apiUrl}/${id}/read`, {});
+=======
+  private getAuthHeaders(): { headers: HttpHeaders } {
+    const token = localStorage.getItem('bt_token') || '';
+    return {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`
+      })
+    };
+  }
+
+  getNotifications(): Observable<Notification[]> {
+    return this.http.get<Notification[]>(`${this.apiUrl}/`, this.getAuthHeaders()).pipe(
+      catchError(err => {
+        console.error('Error fetching notifications:', err);
+        return of([]);
+      })
+    );
+>>>>>>> 357f28c3b3005d7b8f29177f5320ff47038d5dff
+  }
+
+  markAsRead(id: number): Observable<Notification | null> {
+    return this.http.put<Notification>(`${this.apiUrl}/${id}/read`, {}, this.getAuthHeaders()).pipe(
+      catchError(err => {
+        console.error('Error marking notification as read:', err);
+        return of(null);
+      })
+    );
+  }
+
+  createNotification(notification: { user_id: number; notification_type?: string; title: string; message: string }): Observable<Notification | null> {
+    return this.http.post<Notification>(`${this.apiUrl}/`, notification, this.getAuthHeaders()).pipe(
+      catchError(err => {
+        console.error('Error creating notification:', err);
+        return of(null);
+      })
+    );
+  }
+
+  deleteNotification(id: number): Observable<boolean> {
+    return this.http.delete<boolean>(`${this.apiUrl}/${id}`, this.getAuthHeaders()).pipe(
+      catchError(() => of(false))
+    );
   }
 }

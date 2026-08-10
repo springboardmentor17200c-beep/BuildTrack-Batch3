@@ -1,78 +1,73 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-
 from app.database import get_db
 from app import crud, schemas
+from app.auth import get_current_user
+from app.dependencies import require_role
 
 router = APIRouter(
     prefix="/purchase-orders",
     tags=["Purchase Orders"]
 )
 
-
 @router.post("/")
 def create_purchase_order(
-    purchase_order: schemas.PurchaseOrderCreate,
-    db: Session = Depends(get_db)
+    po: schemas.PurchaseOrderCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
-    return crud.create_purchase_order(db, purchase_order)
-
+    vendor = crud.get_vendor(db, po.vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=400, detail="Specified vendor does not exist")
+    project = crud.get_project(db, po.project_id)
+    if not project:
+        raise HTTPException(status_code=400, detail="Specified project does not exist")
+    return crud.create_purchase_order(db, po)
 
 @router.get("/")
 def get_purchase_orders(
-    db: Session = Depends(get_db)
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    return crud.get_purchase_orders(db)
-
+    return crud.get_purchase_orders(db, skip, limit)
 
 @router.get("/{po_id}")
 def get_purchase_order(
     po_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    purchase_order = crud.get_purchase_order(db, po_id)
-
-    if not purchase_order:
-        raise HTTPException(
-            status_code=404,
-            detail="Purchase Order not found"
-        )
-
-    return purchase_order
-
+    po = crud.get_purchase_order(db, po_id)
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return po
 
 @router.put("/{po_id}")
 def update_purchase_order(
     po_id: int,
-    purchase_order: schemas.PurchaseOrderUpdate,
-    db: Session = Depends(get_db)
+    po_update: schemas.PurchaseOrderUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager"))
 ):
-    updated = crud.update_purchase_order(
-        db,
-        po_id,
-        purchase_order
-    )
-
+    updated = crud.update_purchase_order(db, po_id, po_update)
     if not updated:
-        raise HTTPException(
-            status_code=404,
-            detail="Purchase Order not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Purchase order not found")
     return updated
 
-
-@router.delete("/{po_id}")
-def delete_purchase_order(
+@router.post("/{po_id}/receive")
+def receive_material_delivery(
     po_id: int,
-    db: Session = Depends(get_db)
+    received_quantity: int = Body(None, embed=True),
+    status: str = Body("Received", embed=True),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("Admin", "Project Manager", "Contractor", "Site Engineer"))
 ):
-    deleted = crud.delete_purchase_order(db, po_id)
-
-    if not deleted:
-        raise HTTPException(
-            status_code=404,
-            detail="Purchase Order not found"
-        )
-
-    return deleted
+    received = crud.receive_material_delivery(db, po_id, received_quantity=received_quantity, status=status)
+    if not received:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return {
+        "message": "Material delivery received and inventory stock automatically updated!",
+        "purchase_order": received
+    }
