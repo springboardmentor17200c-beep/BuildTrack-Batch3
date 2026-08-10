@@ -10,7 +10,8 @@ export type NotificationType =
   | 'Deadline Notification'
   | 'System Notification';
 
-export interface Notification {
+// Renamed to AppNotification to avoid conflict with browser's built-in Notification API
+export interface AppNotification {
   id: number;
   user_id: number;
   notification_type: NotificationType;
@@ -29,11 +30,11 @@ export class NotificationService {
 
   constructor(private http: HttpClient) {}
 
-  getNotifications(): Observable<Notification[]> {
-    return this.http.get<Notification[]>(this.apiUrl);
+  getNotifications(): Observable<AppNotification[]> {
+    return this.http.get<AppNotification[]>(this.apiUrl);
   }
 
-  markAsRead(id: number): Observable<Notification> {
-    return this.http.put<Notification>(`${this.apiUrl}/${id}/read`, {});
+  markAsRead(id: number): Observable<AppNotification> {
+    return this.http.put<AppNotification>(`${this.apiUrl}/${id}/read`, {});
   }
 }

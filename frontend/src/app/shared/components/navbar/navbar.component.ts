@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { AuthService, User } from '../../../core/services/auth.service';
-import { NotificationService, Notification } from '../../../core/services/notification.service';
+import { NotificationService, AppNotification } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-navbar',
@@ -141,7 +141,7 @@ export class NavbarComponent implements OnInit {
 
   currentUser: User | null = null;
   avatarInitials = '';
-  notifications: Notification[] = [];
+  notifications: AppNotification[] = [];
   unreadCount = 0;
 
   constructor(
@@ -172,7 +172,7 @@ export class NavbarComponent implements OnInit {
     });
   }
 
-  markAsRead(note: Notification, event: Event): void {
+  markAsRead(note: AppNotification, event: Event): void {
     event.stopPropagation();
     this.notificationService.markAsRead(note.id).subscribe({
       next: () => {
