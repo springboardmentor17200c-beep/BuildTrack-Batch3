@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { PurchaseOrderRecord } from '../interfaces/purchase-order.interface';
@@ -27,15 +27,27 @@ export class PurchaseOrderService {
 
   constructor(private http: HttpClient) {}
 
+  private getAuthHeaders(): { headers: HttpHeaders } {
+    const token = localStorage.getItem('bt_token') || '';
+    return {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`
+      })
+    };
+  }
+
   getPurchaseOrders(): Observable<PurchaseOrderRecord[]> {
-    return this.http.get<ApiPurchaseOrder[]>(`${this.apiUrl}/`).pipe(
+    return this.http.get<ApiPurchaseOrder[]>(`${this.apiUrl}/`, this.getAuthHeaders()).pipe(
       map(items => items.map(d => this.toRecord(d))),
-      catchError(() => of([]))
+      catchError(err => {
+        console.error('Error fetching purchase orders:', err);
+        return of([]);
+      })
     );
   }
 
   getPurchaseOrder(id: number): Observable<PurchaseOrderRecord | null> {
-    return this.http.get<ApiPurchaseOrder>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.get<ApiPurchaseOrder>(`${this.apiUrl}/${id}`, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d)),
       catchError(() => of(null))
     );
@@ -55,7 +67,7 @@ export class PurchaseOrderService {
       status: po.status || 'Created'
     };
 
-    return this.http.post<ApiPurchaseOrder>(`${this.apiUrl}/`, payload).pipe(
+    return this.http.post<ApiPurchaseOrder>(`${this.apiUrl}/`, payload, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d))
     );
   }
@@ -68,7 +80,7 @@ export class PurchaseOrderService {
     if (po.quantity !== undefined) payload.quantity = po.quantity;
     if (po.totalAmount !== undefined) payload.total_amount = po.totalAmount;
 
-    return this.http.put<ApiPurchaseOrder>(`${this.apiUrl}/${id}`, payload).pipe(
+    return this.http.put<ApiPurchaseOrder>(`${this.apiUrl}/${id}`, payload, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d))
     );
   }
@@ -77,8 +89,9 @@ export class PurchaseOrderService {
     return this.http.post(`${this.apiUrl}/${id}/receive`, {
       received_quantity: receivedQuantity,
       status: status
-    });
+    }, this.getAuthHeaders());
   }
+
 
   private toRecord(d: ApiPurchaseOrder): PurchaseOrderRecord {
     return {

@@ -64,3 +64,28 @@ def reject_request(
     if not rejected:
         raise HTTPException(status_code=404, detail="Material request not found")
     return rejected
+
+@router.put("/{request_id}")
+def update_request(
+    request_id: int,
+    request: schemas.MaterialRequestCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    updated = crud.update_material_request(db, request_id, request)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Material request not found")
+    return updated
+
+@router.delete("/{request_id}")
+def delete_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    deleted = crud.delete_material_request(db, request_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Material request not found")
+    return {"message": "Material request deleted successfully"}
+
+

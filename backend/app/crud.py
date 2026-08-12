@@ -1447,6 +1447,32 @@ def delete_vendor(db: Session, vendor_id: int):
 
 
 # ======================================================
+# ======================================================
+# NOTIFICATION DISPATCHER HELPER
+# ======================================================
+
+def notify_all_accounts(db: Session, target_user_ids: List[int], title: str, message: str, notification_type: str = "Procurement Alert"):
+    try:
+        all_users = db.query(models.User).all()
+        user_ids = set(target_user_ids)
+        for u in all_users:
+            user_ids.add(u.id)
+
+        for uid in user_ids:
+            if uid:
+                db_note = models.Notification(
+                    user_id=uid,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message
+                )
+                db.add(db_note)
+        db.commit()
+    except Exception as e:
+        print("Notification Dispatch Error:", e)
+
+
+# ======================================================
 # MATERIAL REQUEST CRUD
 # ======================================================
 
@@ -1463,6 +1489,14 @@ def create_material_request(db: Session, request: schemas.MaterialRequestCreate,
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
+
+    notify_all_accounts(
+        db,
+        [user_id] if user_id else [],
+        title=f"New Material Request: {db_request.material_name}",
+        message=f"Request raised for {request.quantity} units of {request.material_name} (Priority: {request.priority})."
+    )
+
     return db_request
 
 def get_material_requests(db: Session, skip: int = 0, limit: int = 100):
@@ -1480,6 +1514,14 @@ def approve_material_request(db: Session, request_id: int, comments: Optional[st
         db_request.comments = comments
     db.commit()
     db.refresh(db_request)
+
+    notify_all_accounts(
+        db,
+        [db_request.requested_by] if db_request.requested_by else [],
+        title=f"Material Request Approved: #{request_id}",
+        message=f"Material request for {db_request.material_name} has been APPROVED by Management."
+    )
+
     return db_request
 
 def reject_material_request(db: Session, request_id: int, comments: Optional[str] = None):
@@ -1491,7 +1533,35 @@ def reject_material_request(db: Session, request_id: int, comments: Optional[str
         db_request.comments = comments
     db.commit()
     db.refresh(db_request)
+
+    notify_all_accounts(
+        db,
+        [db_request.requested_by] if db_request.requested_by else [],
+        title=f"Material Request Rejected: #{request_id}",
+        message=f"Material request for {db_request.material_name} was REJECTED by Management."
+    )
+
     return db_request
+
+def update_material_request(db: Session, request_id: int, request_update: schemas.MaterialRequestCreate):
+    db_req = get_material_request(db, request_id)
+    if not db_req:
+        return None
+    for key, val in request_update.dict(exclude_unset=True).items():
+        if val is not None:
+            setattr(db_req, key, val)
+    db.commit()
+    db.refresh(db_req)
+    return db_req
+
+def delete_material_request(db: Session, request_id: int):
+    db_req = get_material_request(db, request_id)
+    if not db_req:
+        return None
+    db.delete(db_req)
+    db.commit()
+    return db_req
+
 
 
 # ======================================================
@@ -1518,6 +1588,14 @@ def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
     db.add(db_po)
     db.commit()
     db.refresh(db_po)
+
+    notify_all_accounts(
+        db,
+        [],
+        title=f"New PO Issued: {po_no}",
+        message=f"Purchase Order {po_no} generated for {po.quantity} units of {po.material_name} (Total: ${total:,.2f})."
+    )
+
     return db_po
 
 def get_purchase_orders(db: Session, skip: int = 0, limit: int = 100):
@@ -1536,6 +1614,14 @@ def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOr
         db_po.total_amount = db_po.quantity * db_po.unit_price
     db.commit()
     db.refresh(db_po)
+
+    notify_all_accounts(
+        db,
+        [],
+        title=f"PO Status Updated: {db_po.po_number}",
+        message=f"Purchase Order {db_po.po_number} for {db_po.material_name} status updated to '{db_po.status}'."
+    )
+
     return db_po
 
 def receive_material_delivery(db: Session, po_id: int, received_quantity: Optional[int] = None, status: str = "Received"):
@@ -1567,6 +1653,14 @@ def receive_material_delivery(db: Session, po_id: int, received_quantity: Option
 
     db.commit()
     db.refresh(db_po)
+
+    notify_all_accounts(
+        db,
+        [],
+        title=f"Delivery Received: {db_po.material_name}",
+        message=f"{qty_received} units of {db_po.material_name} received on site. Inventory stock updated!"
+    )
+
     return db_po
 
 
@@ -1590,6 +1684,14 @@ def create_invoice(db: Session, invoice: schemas.InvoiceCreate):
     db.add(db_inv)
     db.commit()
     db.refresh(db_inv)
+
+    notify_all_accounts(
+        db,
+        [],
+        title=f"Invoice Uploaded: {inv_no}",
+        message=f"Vendor Invoice {inv_no} uploaded for Purchase Order #{invoice.purchase_order_id} (Amount: ${invoice.amount:,.2f})."
+    )
+
     return db_inv
 
 def get_invoices(db: Session, skip: int = 0, limit: int = 100):
@@ -1605,5 +1707,14 @@ def update_invoice_payment(db: Session, invoice_id: int, payment_status: str):
     db_inv.payment_status = payment_status
     db.commit()
     db.refresh(db_inv)
+
+    notify_all_accounts(
+        db,
+        [],
+        title=f"Payment Status Updated: {db_inv.invoice_no}",
+        message=f"Invoice {db_inv.invoice_no} payment status updated to '{payment_status}'."
+    )
+
     return db_inv
+
 

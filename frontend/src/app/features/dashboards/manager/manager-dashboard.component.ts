@@ -3,6 +3,15 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { ProjectService } from '../../../core/services/project.service';
+import { MaterialRequestService } from '../../../core/services/material-request.service';
+import { WorkforceService } from '../../../core/services/workforce.service';
+import { InventoryService } from '../../../core/services/inventory.service';
+import { PurchaseOrderService } from '../../../core/services/purchase-order.service';
+import { Material } from '../../../core/interfaces/inventory.interface';
+import { PurchaseOrderRecord } from '../../../core/interfaces/purchase-order.interface';
+
+
 
 interface ProjectSummary {
   id: number;
@@ -11,8 +20,9 @@ interface ProjectSummary {
   progress: number;
   budget: string;
   spent: string;
-  status: 'On Track' | 'Delayed' | 'Critical';
+  status: 'On Track' | 'Delayed' | 'Critical' | 'Completed';
 }
+
 
 @Component({
   selector: 'app-manager-dashboard',
@@ -63,7 +73,108 @@ interface ProjectSummary {
         </div>
       </div>
 
-      <!-- Middle Grid: Charts and Alerts -->
+      <!-- Section 2: Resource Utilization & Procurement Overview -->
+      <div class="row g-4 mb-4">
+        <!-- Resource Utilization Card -->
+        <div class="col-12 col-lg-6">
+          <div class="bt-card h-100">
+            <div class="bt-card-header d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="fw-bold mb-0 text-slate-800">Resource Utilization</h5>
+                <span class="text-xs text-muted">Site inventory levels & stock consumption tracking</span>
+              </div>
+              <a routerLink="/inventory" class="btn btn-xs btn-bt-outline d-flex align-items-center gap-1">
+                <mat-icon style="font-size: 14px; width: 14px; height: 14px;">inventory_2</mat-icon>
+                <span>View Inventory</span>
+              </a>
+            </div>
+            
+            <div class="d-flex flex-column gap-3 mt-3">
+              <div *ngFor="let item of inventoryItems" class="p-3 border rounded bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-semibold text-slate-800 text-sm">{{ item.name }}</span>
+                  <span class="badge" [class.bg-success-subtle]="isHealthyStock(item)"
+                        [class.text-success]="isHealthyStock(item)"
+                        [class.bg-danger-subtle]="!isHealthyStock(item)"
+                        [class.text-danger]="!isHealthyStock(item)">
+                    {{ item.quantity }} {{ item.unit }}
+                  </span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                  <div class="progress-bar" role="progressbar" 
+                       [style.width]="getUtilizationPercentage(item.quantity, item.minimumStock) + '%'"
+                       [class.bg-success]="isHealthyStock(item)"
+                       [class.bg-danger]="!isHealthyStock(item)"></div>
+                </div>
+
+                <div class="d-flex justify-content-between text-xxs text-muted mt-1">
+                  <span>Minimum Stock Requirement: {{ item.minimumStock }} {{ item.unit }}</span>
+                  <span>Supplier: {{ item.supplier || 'Primary Vendor' }}</span>
+                </div>
+              </div>
+
+              <div *ngIf="inventoryItems.length === 0" class="text-center py-4 text-muted">
+                <mat-icon class="text-muted">inventory</mat-icon>
+                <p class="text-xs mb-0 mt-1">No resource inventory logged yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Procurement Overview Card -->
+        <div class="col-12 col-lg-6">
+          <div class="bt-card h-100">
+            <div class="bt-card-header d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="fw-bold mb-0 text-slate-800">Procurement Overview</h5>
+                <span class="text-xs text-muted">Purchase Order pipeline & delivery fulfillment</span>
+              </div>
+              <a routerLink="/purchase-orders" class="btn btn-xs btn-bt-outline d-flex align-items-center gap-1">
+                <mat-icon style="font-size: 14px; width: 14px; height: 14px;">shopping_cart</mat-icon>
+                <span>PO Vault</span>
+              </a>
+            </div>
+
+            <!-- Recent Purchase Orders Table -->
+            <div class="table-responsive mt-3">
+              <table class="table align-middle text-sm mb-0">
+                <thead class="table-light text-muted uppercase text-xs">
+                  <tr>
+                    <th>PO Number</th>
+                    <th>Material</th>
+                    <th>Qty</th>
+                    <th>Total ($)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let po of recentPos">
+                    <td><strong>#{{ po.poNumber }}</strong></td>
+                    <td>{{ po.materialName }}</td>
+                    <td>{{ po.quantity }}</td>
+                    <td>{{ po.totalAmount | currency }}</td>
+                    <td>
+                      <span class="bt-badge" 
+                            [class.bt-badge-warning]="po.status === 'Created'"
+                            [class.bt-badge-info]="po.status === 'Sent'"
+                            [class.bt-badge-primary]="po.status === 'Accepted'"
+                            [class.bt-badge-success]="po.status === 'Delivered' || po.status === 'Received'"
+                            [class.bt-badge-danger]="po.status === 'Rejected'">
+                        {{ po.status }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="recentPos.length === 0">
+                    <td colspan="5" class="text-center py-4 text-muted">No purchase orders generated yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Charts and Alerts -->
       <div class="row g-4 mb-4">
         <!-- Budget vs Progress Visual Chart -->
         <div class="col-12 col-lg-8">
@@ -114,9 +225,8 @@ interface ProjectSummary {
         </div>
       </div>
 
-      <!-- Bottom Grid: Projects and Schedule Summary -->
-      <div class="row g-4">
-        <!-- Active Projects List -->
+      <!-- Section 4: Active Projects List -->
+      <div class="row g-4 mb-4">
         <div class="col-12">
           <div class="bt-card">
             <div class="bt-card-header">
@@ -162,6 +272,9 @@ interface ProjectSummary {
                       </span>
                     </td>
                   </tr>
+                  <tr *ngIf="projects.length === 0">
+                    <td colspan="6" class="text-center py-4 text-muted">No active projects found.</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -170,6 +283,8 @@ interface ProjectSummary {
       </div>
     </div>
   `,
+
+
   styles: [`
     .kpi-icon-container {
       width: 48px;
@@ -202,10 +317,10 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
   @ViewChild('budgetCanvas') budgetCanvas!: ElementRef<HTMLCanvasElement>;
 
   kpiCards = [
-    { title: 'Portfolio Budget', value: '$4.8M', icon: 'payments', color: '#ff7a00', bgColor: '#fff3e6', progress: 72, progressText: 'Budget Burn rate' },
-    { title: 'Total Workforce', value: '184 Active', icon: 'engineering', color: '#10b981', bgColor: '#e6fbf4' },
-    { title: 'Material Requests', value: '18 Pending', icon: 'shopping_cart', color: '#06b6d4', bgColor: '#e6fafd' },
-    { title: 'Overall Progress', value: '62% Avg', icon: 'trending_up', color: '#f59e0b', bgColor: '#fefbeb', progress: 62, progressText: 'Milestones Completed' }
+    { title: 'Portfolio Budget', value: '$0', icon: 'payments', color: '#ff7a00', bgColor: '#fff3e6', progress: 72, progressText: 'Budget Burn rate' },
+    { title: 'Total Workforce', value: '0 Active', icon: 'engineering', color: '#10b981', bgColor: '#e6fbf4' },
+    { title: 'Material Requests', value: '0 Pending', icon: 'shopping_cart', color: '#06b6d4', bgColor: '#e6fafd' },
+    { title: 'Overall Progress', value: '0% Avg', icon: 'trending_up', color: '#f59e0b', bgColor: '#fefbeb', progress: 0, progressText: 'Milestones Completed' }
   ];
 
   siteAlerts = [
@@ -214,20 +329,95 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     { title: 'Daily Report Overdue', description: 'Site C checklist not uploaded by inspector River.', severity: 'info', time: '2h ago' }
   ];
 
-  projects: ProjectSummary[] = [
-    { id: 1, name: 'Metropolitan Commercial Plaza', category: 'Commercial', progress: 85, budget: '$1.5M', spent: '$1.3M', status: 'On Track' },
-    { id: 2, name: 'Riverside Residential Township', category: 'Residential', progress: 48, budget: '$2.0M', spent: '$1.2M', status: 'Delayed' },
-    { id: 3, name: 'Industrial Cold Storage Unit', category: 'Industrial', progress: 92, budget: '$800k', spent: '$780k', status: 'On Track' },
-    { id: 4, name: 'State Highway Bypass Route', category: 'Infrastructure', progress: 24, budget: '$3.5M', spent: '$900k', status: 'Critical' }
-  ];
+  projects: ProjectSummary[] = [];
+  inventoryItems: Material[] = [];
+  recentPos: PurchaseOrderRecord[] = [];
 
-  constructor() {}
+  constructor(
+    private projectService: ProjectService,
+    private materialRequestService: MaterialRequestService,
+    private workforceService: WorkforceService,
+    private inventoryService: InventoryService,
+    private poService: PurchaseOrderService
+  ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.loadRealDashboardData();
+  }
+
+  loadRealDashboardData(): void {
+    this.projectService.getProjects().subscribe(list => {
+      this.projects = list.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category || 'Residential',
+        progress: p.progress || 0,
+        budget: p.budget || '$0',
+        spent: p.spent || '$0',
+        status: (p.status as any) || 'On Track'
+      }));
+
+      // Calculate total portfolio budget dynamically from PostgreSQL projects
+      const totalBudget = list.reduce((sum, p) => {
+        const raw = (p.budget || '').replace(/[^0-9.]/g, '');
+        return sum + (parseFloat(raw) || 0);
+      }, 0);
+
+      if (totalBudget >= 1_000_000) {
+        this.kpiCards[0].value = `$${(totalBudget / 1_000_000).toFixed(1)}M`;
+      } else if (totalBudget > 0) {
+        this.kpiCards[0].value = `$${totalBudget.toLocaleString()}`;
+      }
+
+      // Calculate average progress across real projects
+      if (list.length > 0) {
+        const avgProgress = Math.round(list.reduce((sum, p) => sum + (p.progress || 0), 0) / list.length);
+        this.kpiCards[3].value = `${avgProgress}% Avg`;
+        this.kpiCards[3].progress = avgProgress;
+      }
+    });
+
+    this.materialRequestService.getRequests().subscribe(reqs => {
+      const pendingCount = reqs.filter(r => r.status === 'Pending').length;
+      this.kpiCards[2].value = `${pendingCount} Pending`;
+    });
+
+    this.workforceService.getWorkers().subscribe(workers => {
+      this.kpiCards[1].value = `${workers.length} Active`;
+    });
+
+    // Load real Resource Utilization (Materials) from PostgreSQL
+    this.inventoryService.getMaterials().subscribe(items => {
+      this.inventoryItems = items;
+    });
+
+    // Load real Procurement Overview (Purchase Orders) from PostgreSQL
+    this.poService.getPurchaseOrders().subscribe(pos => {
+      this.recentPos = pos.slice(0, 5); // Display top 5 recent POs
+    });
+  }
+
+  getUtilizationPercentage(quantity: string | number, minStock?: number): number {
+    const qty = typeof quantity === 'number' ? quantity : parseInt(String(quantity).replace(/,/g, ''), 10) || 0;
+    const min = minStock || 10;
+    const pct = Math.round((qty / (min * 2)) * 100);
+    return Math.min(Math.max(pct, 10), 100);
+  }
+
+  isHealthyStock(item: Material): boolean {
+    if (!item) return true;
+    const qty = typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity).replace(/,/g, ''), 10) || 0;
+    const min = item.minimumStock ?? 10;
+    return qty >= min;
+  }
+
+
 
   ngAfterViewInit(): void {
     this.drawChart();
   }
+
+
 
   drawChart(): void {
     const canvas = this.budgetCanvas.nativeElement;

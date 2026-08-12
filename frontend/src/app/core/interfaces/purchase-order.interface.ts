@@ -11,6 +11,7 @@ export interface PurchaseOrderRecord {
   unitPrice: number;
   totalAmount: number;
   expectedDeliveryDate?: string;
-  status: 'Created' | 'Sent' | 'Accepted' | 'Rejected' | 'Delivered';
+  status: 'Created' | 'Sent' | 'Accepted' | 'Rejected' | 'Delivered' | 'Received' | 'Cancelled';
+
   createdAt?: string;
 }

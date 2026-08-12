@@ -12,8 +12,8 @@ class ProjectStatus(str, Enum):
 class AttendanceStatus(str, Enum):
 
     Present = "Present"
-    Absent = "Absent"
-    OnLeave = "On Leave"
+
+
 
 
 # ---------------- USERS ----------------
@@ -23,7 +23,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     role: str
-    phone: Optional[constr(pattern=r'^\d{10}$')] = None
+    phone: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -31,9 +31,8 @@ class UserLogin(BaseModel):
     password: str
 
 
-
-
 # ---------------- PROJECTS ----------------
+
 
 class ProjectBase(BaseModel):
     project_name: str

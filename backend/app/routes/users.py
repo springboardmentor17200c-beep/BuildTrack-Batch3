@@ -24,9 +24,17 @@ def register(user: schemas.UserRegister, db: Session = Depends(get_db)):
         )
 
     new_user = crud.create_user(db, user)
+    access_token = create_access_token(
+        data={
+            "sub": new_user.email,
+            "role": new_user.role
+        }
+    )
 
     return {
         "message": "User registered successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": new_user.id,
             "name": new_user.name,
@@ -34,6 +42,7 @@ def register(user: schemas.UserRegister, db: Session = Depends(get_db)):
             "role": new_user.role
         }
     }
+
 
 
 @router.post("/login")

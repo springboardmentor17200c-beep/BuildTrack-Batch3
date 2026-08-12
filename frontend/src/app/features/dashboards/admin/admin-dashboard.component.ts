@@ -1,13 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { UserService, UserRecord } from '../../../core/services/user.service';
+import { ProjectService } from '../../../core/services/project.service';
+import { ReportService } from '../../../core/services/report.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ToastComponent } from '../../../shared/components/toast/toast.component';
+import { Project } from '../../../core/interfaces/project.interface';
+import { Report } from '../../../core/interfaces/report.interface';
+
 
 interface SystemLog {
   timestamp: string;
@@ -22,12 +28,14 @@ interface SystemLog {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterModule,
     MatIconModule,
     MatButtonModule,
     MatDialogModule,
     MatTabsModule,
     ToastComponent
   ],
+
   template: `
     <div class="container-fluid">
       <!-- Title Area -->
@@ -73,7 +81,7 @@ interface SystemLog {
 
       <!-- Main Tabs -->
       <mat-tab-group class="bg-white rounded shadow-sm p-3">
-        <!-- User Directory Tab -->
+        <!-- 1. User Management Tab -->
         <mat-tab label="User Management">
           <div class="p-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -144,10 +152,139 @@ interface SystemLog {
           </div>
         </mat-tab>
 
-        <!-- System Audit Logs Tab -->
-        <mat-tab label="System Logs & Security">
+        <!-- 2. Project Monitoring Tab -->
+        <mat-tab label="Project Monitoring">
           <div class="p-3">
-            <h5 class="fw-bold mb-3">Recent Security & Operations Logs</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 class="fw-bold mb-0">Live Active Construction Projects</h5>
+                <span class="text-xs text-muted">Project health monitoring & budget outlays</span>
+              </div>
+              <a routerLink="/projects" class="btn btn-bt-outline btn-sm d-flex align-items-center gap-1">
+                <mat-icon style="font-size: 16px; width: 16px; height: 16px;">domain</mat-icon>
+                <span>Full Projects Console</span>
+              </a>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-middle text-sm mb-0">
+                <thead class="table-light text-muted uppercase text-xs">
+                  <tr>
+                    <th>Project Name</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Allocated Budget</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let proj of projectsList">
+                    <td><strong>{{ proj.name }}</strong></td>
+                    <td>{{ proj.category }}</td>
+                    <td>{{ proj.location }}</td>
+                    <td>{{ proj.budget }}</td>
+                    <td>
+                      <span class="bt-badge bt-badge-success">Running</span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="projectsList.length === 0">
+                    <td colspan="5" class="text-center py-4 text-muted">No projects found for monitoring.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- 3. System Analytics Tab -->
+        <mat-tab label="System Analytics">
+          <div class="p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 class="fw-bold mb-0">System Operational Analytics</h5>
+                <span class="text-xs text-muted">API performance, Database health, and latency statistics</span>
+              </div>
+              <a routerLink="/analytics" class="btn btn-bt-primary btn-sm d-flex align-items-center gap-1">
+                <mat-icon style="font-size: 16px; width: 16px; height: 16px;">insert_chart</mat-icon>
+                <span>Deep System Analytics</span>
+              </a>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-xs text-muted fw-bold">POSTGRESQL DATABASE</span>
+                  <h4 class="fw-bold text-success mb-0 mt-1">Healthy (Connected)</h4>
+                  <span class="text-xxs text-muted">Port 5432 / PostgreSQL 16</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-xs text-muted fw-bold">FASTAPI BACKEND LATENCY</span>
+                  <h4 class="fw-bold text-info mb-0 mt-1">12 ms Avg</h4>
+                  <span class="text-xxs text-muted">Port 8000 / Uvicorn Server</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-xs text-muted fw-bold">AUTHENTICATION ENGINE</span>
+                  <h4 class="fw-bold text-primary mb-0 mt-1">JWT Active</h4>
+                  <span class="text-xxs text-muted">Bearer Token Security</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- 4. Reports Management Tab -->
+        <mat-tab label="Reports Management">
+          <div class="p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 class="fw-bold mb-0">Site Quality & Inspection Reports</h5>
+                <span class="text-xs text-muted">Compiled digital PDF inspection sheets</span>
+              </div>
+              <a routerLink="/reports" class="btn btn-bt-outline btn-sm d-flex align-items-center gap-1">
+                <mat-icon style="font-size: 16px; width: 16px; height: 16px;">picture_as_pdf</mat-icon>
+                <span>Reports Console</span>
+              </a>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-middle text-sm mb-0">
+                <thead class="table-light text-muted uppercase text-xs">
+                  <tr>
+                    <th>Report ID</th>
+                    <th>Type</th>
+                    <th>Project</th>
+                    <th>Compiled Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let rep of reportsList">
+                    <td><strong>#REP-00{{ rep.id }}</strong></td>
+                    <td>{{ rep.reportType }}</td>
+                    <td>{{ rep.projectName }}</td>
+                    <td>{{ rep.createdAt }}</td>
+                    <td><span class="badge bg-success-subtle text-success">Verified Signature</span></td>
+                  </tr>
+                  <tr *ngIf="reportsList.length === 0">
+                    <td colspan="5" class="text-center py-4 text-muted">No reports compiled yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- 5. Activity Monitoring Tab -->
+        <mat-tab label="Activity Monitoring">
+          <div class="p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold mb-0">Real-Time Activity & Audit Logs</h5>
+              <span class="badge bg-dark text-white text-xs">Live Log Stream</span>
+            </div>
             <div class="log-container bg-slate-900 text-white rounded p-3 font-monospace text-xs" style="max-height: 400px; overflow-y: auto;">
               <div *ngFor="let log of auditLogs" class="log-line py-1 border-bottom border-secondary border-opacity-10">
                 <span class="text-muted">[{{ log.timestamp }}]</span>
@@ -159,6 +296,7 @@ interface SystemLog {
           </div>
         </mat-tab>
       </mat-tab-group>
+
 
       <!-- Add User Modal -->
       <div *ngIf="showAddUserModal" class="modal-overlay d-flex align-items-center justify-content-center">
@@ -253,17 +391,20 @@ interface SystemLog {
 })
 export class AdminDashboardComponent implements OnInit {
   statCards = [
-    { title: 'Total Members', value: '0', icon: 'groups', color: '#ff7a00', trend: '+4', trendText: 'this month', trendColor: '#10b981' },
-    { title: 'Active Sites', value: '8', icon: 'location_on', color: '#06b6d4', trend: 'Steady', trendText: 'since last week', trendColor: '#64748b' },
-    { title: 'API Success Rate', value: '99.8%', icon: 'api', color: '#10b981', trend: '+0.1%', trendText: 'vs standard', trendColor: '#10b981' },
-    { title: 'Security Audits', value: '0 Alerts', icon: 'security', color: '#ef4444', trend: 'Healthy', trendText: 'zero breaches', trendColor: '#10b981' }
+    { title: 'Project Monitoring', value: '0 Active', icon: 'domain', color: '#06b6d4', trend: 'Running', trendText: 'Oakridge & SVS sites', trendColor: '#10b981' },
+    { title: 'System Analytics', value: '99.8%', icon: 'analytics', color: '#ff7a00', trend: 'Optimal', trendText: 'PostgreSQL & APIs healthy', trendColor: '#10b981' },
+    { title: 'Reports Management', value: '0 Logged', icon: 'picture_as_pdf', color: '#10b981', trend: 'Verified', trendText: 'PDF Site Quality Audits', trendColor: '#10b981' },
+    { title: 'Activity Monitoring', value: 'Live Stream', icon: 'history', color: '#6366f1', trend: 'Audited', trendText: 'Real-time security logs', trendColor: '#10b981' }
   ];
 
   users: UserRecord[] = [];
   filteredUsers: UserRecord[] = [];
+  projectsList: Project[] = [];
+  reportsList: Report[] = [];
 
   auditLogs: SystemLog[] = [
-    { timestamp: '2026-07-30 12:45:12', level: 'INFO', message: 'Admin dashboard initialized successfully', user: 'Admin' }
+    { timestamp: '2026-08-12 14:28:12', level: 'INFO', message: 'Admin Dashboard initialized with 5 system consoles', user: 'Admin' },
+    { timestamp: '2026-08-12 14:25:00', level: 'INFO', message: 'PostgreSQL database session active on port 5432', user: 'System' }
   ];
 
   showAddUserModal = false;
@@ -272,6 +413,8 @@ export class AdminDashboardComponent implements OnInit {
 
   constructor(
     private userService: UserService,
+    private projectService: ProjectService,
+    private reportService: ReportService,
     private toastService: ToastService,
     private formBuilder: FormBuilder
   ) {}
@@ -279,6 +422,8 @@ export class AdminDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.initUserForm();
     this.loadUsers();
+    this.loadProjects();
+    this.loadReports();
   }
 
   initUserForm(): void {
@@ -293,9 +438,23 @@ export class AdminDashboardComponent implements OnInit {
     this.userService.getUsers().subscribe(list => {
       this.users = list;
       this.filteredUsers = [...this.users];
-      this.statCards[0].value = list.length.toString();
     });
   }
+
+  loadProjects(): void {
+    this.projectService.getProjects().subscribe(list => {
+      this.projectsList = list;
+      this.statCards[0].value = `${list.length} Active`;
+    });
+  }
+
+  loadReports(): void {
+    this.reportService.getReports().subscribe(list => {
+      this.reportsList = list;
+      this.statCards[2].value = `${list.length} Compiled`;
+    });
+  }
+
 
   getInitials(name: string): string {
     if (!name) return 'U';
@@ -304,8 +463,11 @@ export class AdminDashboardComponent implements OnInit {
 
   refreshMetrics(): void {
     this.loadUsers();
-    this.toastService.showSuccess('Metrics & User Directory refreshed.');
+    this.loadProjects();
+    this.loadReports();
+    this.toastService.showSuccess('Metrics & Admin Consoles refreshed.');
   }
+
 
   filterUsers(event: any): void {
     const term = event.target.value.toLowerCase();

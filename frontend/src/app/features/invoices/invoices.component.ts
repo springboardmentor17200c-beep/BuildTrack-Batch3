@@ -42,11 +42,12 @@ import { PurchaseOrderRecord } from '../../core/interfaces/purchase-order.interf
               <div>
                 <label class="bt-form-label">Reference Purchase Order</label>
                 <select class="form-select bt-form-control" formControlName="purchaseOrderId" (change)="onPoSelected()">
-                  <option value="" disabled selected>Select purchase order...</option>
+                  <option value="">Select purchase order...</option>
                   <option *ngFor="let po of orders" [value]="po.id">
                     #{{ po.poNumber }} - {{ po.materialName }} (Qty: {{ po.quantity }})
                   </option>
                 </select>
+
                 <div *ngIf="submitted && f['purchaseOrderId'].errors" class="text-danger text-xs mt-1">Purchase Order reference is required.</div>
               </div>
 
@@ -211,9 +212,11 @@ export class InvoicesComponent implements OnInit {
     });
 
     this.poService.getPurchaseOrders().subscribe(list => {
-      // Invoices can be generated for accepted or delivered POs
-      this.orders = list.filter(po => po.status === 'Accepted' || po.status === 'Delivered');
+      // Invoices can be generated for any valid purchase order
+      this.orders = list.filter(po => po.status !== 'Rejected');
     });
+
+
 
     this.vendorService.getVendors().subscribe(list => {
       this.vendors = list;

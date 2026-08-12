@@ -72,23 +72,31 @@ export class AuthService {
 
  
 
- register(
-  name: string,
-  email: string,
-  password: string,
-  role: string,
-  phone: string
-): Observable<any> {
+  register(
+    name: string,
+    email: string,
+    password: string,
+    role: string,
+    phone: string
+  ): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/register`, {
+      name,
+      email,
+      password,
+      role,
+      phone
+    }).pipe(
+      tap(response => {
+        if (response && response.access_token) {
+          const user: User = { ...response.user, token: response.access_token };
+          localStorage.setItem('bt_user', JSON.stringify(user));
+          localStorage.setItem('bt_token', response.access_token);
+          this.currentUserSubject.next(user);
+        }
+      })
+    );
+  }
 
-  return this.http.post(`${this.apiUrl}/register`, {
-    name,
-    email,
-    password,
-    role,
-    phone
-  });
-
-}
 
 
   resetPassword(email: string): Observable<boolean> {

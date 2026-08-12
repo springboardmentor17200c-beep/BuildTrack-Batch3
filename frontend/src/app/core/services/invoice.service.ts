@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { InvoiceRecord } from '../interfaces/invoice.interface';
@@ -23,15 +23,27 @@ export class InvoiceService {
 
   constructor(private http: HttpClient) {}
 
+  private getAuthHeaders(): { headers: HttpHeaders } {
+    const token = localStorage.getItem('bt_token') || '';
+    return {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${token}`
+      })
+    };
+  }
+
   getInvoices(): Observable<InvoiceRecord[]> {
-    return this.http.get<ApiInvoice[]>(`${this.apiUrl}/`).pipe(
+    return this.http.get<ApiInvoice[]>(`${this.apiUrl}/`, this.getAuthHeaders()).pipe(
       map(items => items.map(d => this.toRecord(d))),
-      catchError(() => of([]))
+      catchError(err => {
+        console.error('Error fetching invoices:', err);
+        return of([]);
+      })
     );
   }
 
   getInvoice(id: number): Observable<InvoiceRecord | null> {
-    return this.http.get<ApiInvoice>(`${this.apiUrl}/${id}`).pipe(
+    return this.http.get<ApiInvoice>(`${this.apiUrl}/${id}`, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d)),
       catchError(() => of(null))
     );
@@ -46,16 +58,17 @@ export class InvoiceService {
       gst: inv.gst,
       invoice_date: inv.invoiceDate
     };
-    return this.http.post<ApiInvoice>(`${this.apiUrl}/`, payload).pipe(
+    return this.http.post<ApiInvoice>(`${this.apiUrl}/`, payload, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d))
     );
   }
 
   updatePaymentStatus(id: number, paymentStatus: 'Pending' | 'Approved' | 'Paid'): Observable<InvoiceRecord> {
-    return this.http.put<ApiInvoice>(`${this.apiUrl}/${id}/payment`, { payment_status: paymentStatus }).pipe(
+    return this.http.put<ApiInvoice>(`${this.apiUrl}/${id}/payment`, { payment_status: paymentStatus }, this.getAuthHeaders()).pipe(
       map(d => this.toRecord(d))
     );
   }
+
 
   private toRecord(d: ApiInvoice): InvoiceRecord {
     return {
