@@ -35,11 +35,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Ensure static/reports directory exists and mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")

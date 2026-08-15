@@ -5,20 +5,28 @@ from app import crud, schemas
 from app.dependencies import require_role
 from app.auth import get_current_user
 from app.pdf_generator import generate_pdf_report
+from app.excel_generator import generate_excel_report
 
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
 )
 
-# Create Report (Generates PDF Document)
+# Create Report (Generates PDF and Excel Documents)
+@router.post("")
 @router.post("/")
 def create_report(
     report: schemas.ReportCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_role("Admin", "Project Manager"))
+    current_user=Depends(require_role("Admin", "Project Manager", "Site Engineer", "Contractor", "Client", "Store Manager"))
 ):
     pdf_url = generate_pdf_report(
+        db,
+        report.project_id,
+        report.report_type,
+        current_user.id
+    )
+    generate_excel_report(
         db,
         report.project_id,
         report.report_type,
@@ -29,12 +37,14 @@ def create_report(
 
 
 # Get All Reports
+@router.get("")
 @router.get("/")
 def get_reports(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     return crud.get_reports(db)
+
 
 
 # Get Report By ID

@@ -93,10 +93,16 @@ class ProjectMilestone(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    name = Column(String(150), nullable=False)
-    description = Column(Text, nullable=True)
+    milestone_name = Column("milestone_name", String(150), nullable=False)
     due_date = Column(Date, nullable=False)
+    completed_date = Column(Date, nullable=True)
     status = Column(String(50), default="Pending")
+
+    @property
+    def name(self):
+        return self.milestone_name
+
+
 
     project = relationship("Project", back_populates="milestones")
 
@@ -105,11 +111,16 @@ class Resource(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    name = Column(String(100), nullable=False)
+    resource_name = Column("resource_name", String(100), nullable=False)
     category = Column(String(50), nullable=False)
     quantity = Column(Integer, nullable=False)
-    unit = Column(String(20), nullable=False, default="Units")
     status = Column(String(50), default="Available")
+
+    @property
+    def name(self):
+        return self.resource_name
+
+
 
     project = relationship("Project", back_populates="resources")
 
@@ -191,7 +202,8 @@ class Report(Base):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     generated_by = Column(Integer, ForeignKey("users.id"), index=True)
-    report_type = Column(Enum(ReportTypeEnum), nullable=False)
+    report_type = Column(String(100), nullable=False)
+
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
 
