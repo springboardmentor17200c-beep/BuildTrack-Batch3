@@ -13,11 +13,13 @@ export interface UserRecord {
   lastActive?: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private readonly apiUrl = 'http://127.0.0.1:8000/users';
+  private readonly apiUrl = `${environment.apiUrl}/users`;
 
   constructor(private http: HttpClient) {}
 

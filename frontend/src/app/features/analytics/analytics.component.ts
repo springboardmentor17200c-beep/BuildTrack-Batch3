@@ -3,10 +3,19 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { forkJoin } from 'rxjs';
 import { ReportService } from '../../core/services/report.service';
 import { ProjectService } from '../../core/services/project.service';
+import { WorkforceService } from '../../core/services/workforce.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { PurchaseOrderService } from '../../core/services/purchase-order.service';
+import { InvoiceService } from '../../core/services/invoice.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Report } from '../../core/interfaces/report.interface';
+import { Project } from '../../core/interfaces/project.interface';
+import { PurchaseOrderRecord } from '../../core/interfaces/purchase-order.interface';
+import { InvoiceRecord } from '../../core/interfaces/invoice.interface';
+import { Worker } from '../../core/interfaces/workforce.interface';
 import { ToastComponent } from '../../shared/components/toast/toast.component';
 
 @Component({
@@ -33,7 +42,7 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
         <div class="col-12 col-lg-6">
           <div class="bt-card">
             <div class="bt-card-header">
-              <h5 class="fw-bold mb-0">Category Cost Analysis (Budget vs Spent)</h5>
+              <h5 class="fw-bold mb-0">Project Portfolio Cost Analysis (Budget vs Spent)</h5>
               <mat-icon class="text-warning">bar_chart</mat-icon>
             </div>
             <div class="d-flex align-items-center justify-content-center py-3" style="height: 250px;">
@@ -42,11 +51,11 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
             <div class="d-flex justify-content-center gap-3 text-xxs text-muted mt-2">
               <div class="d-flex align-items-center gap-1">
                 <span style="width: 10px; height: 10px; background-color: #3b82f6; display: inline-block; border-radius: 2px;"></span>
-                <span>Budget Allocated ($100k)</span>
+                <span>Budget Allocated</span>
               </div>
               <div class="d-flex align-items-center gap-1">
                 <span style="width: 10px; height: 10px; background-color: #ef4444; display: inline-block; border-radius: 2px;"></span>
-                <span>Actual Spent ($100k)</span>
+                <span>Actual Spent (Paid Invoices)</span>
               </div>
             </div>
           </div>
@@ -65,15 +74,15 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
             <div class="d-flex justify-content-center gap-3 text-xxs text-muted mt-2">
               <div class="d-flex align-items-center gap-1">
                 <span style="width: 10px; height: 10px; background-color: #ff7a00; display: inline-block; border-radius: 2px;"></span>
-                <span>Skilled Labor (45%)</span>
+                <span>Skilled Labor ({{ skilledPct }}%)</span>
               </div>
               <div class="d-flex align-items-center gap-1">
                 <span style="width: 10px; height: 10px; background-color: #10b981; display: inline-block; border-radius: 2px;"></span>
-                <span>General Labor (35%)</span>
+                <span>General Labor ({{ generalPct }}%)</span>
               </div>
               <div class="d-flex align-items-center gap-1">
                 <span style="width: 10px; height: 10px; background-color: #06b6d4; display: inline-block; border-radius: 2px;"></span>
-                <span>Supervisors/Eng (20%)</span>
+                <span>Supervisors/Eng ({{ supervisorPct }}%)</span>
               </div>
             </div>
           </div>
@@ -109,7 +118,7 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
                 <td>{{ rep.projectName }}</td>
                 <td>{{ rep.createdAt }}</td>
                 <td>
-                  <a [href]="rep.reportUrl" target="_blank" class="text-primary text-xs text-decoration-none d-inline-flex align-items-center gap-1">
+                  <a [href]="rep.reportUrl.startsWith('http') ? rep.reportUrl : 'http://127.0.0.1:8000' + rep.reportUrl" target="_blank" class="text-primary text-xs text-decoration-none d-inline-flex align-items-center gap-1">
                     <mat-icon style="font-size: 14px; width: 14px; height: 14px;">download</mat-icon>
                     <span>Download PDF</span>
                   </a>
@@ -141,9 +150,8 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
               <tr>
                 <th>Project Name</th>
                 <th>Contract Value</th>
-                <th>Total Spent</th>
-                <th>Material Procurement</th>
-                <th>Workforce Cost</th>
+                <th>Actual Spent</th>
+                <th>Milestones Progress</th>
                 <th>Performance Status</th>
               </tr>
             </thead>
@@ -153,17 +161,25 @@ import { ToastComponent } from '../../shared/components/toast/toast.component';
                   <span class="fw-semibold text-slate-800">{{ audit.name }}</span>
                 </td>
                 <td>{{ audit.contractValue }}</td>
-                <td class="fw-semibold text-danger">{{ audit.spent }}</td>
-                <td>{{ audit.materials }}</td>
-                <td>{{ audit.labor }}</td>
+                <td class="fw-semibold text-danger">{{ audit.spent | currency }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height: 6px; width: 100px;">
+                      <div class="progress-bar bg-warning" role="progressbar" [style.width]="audit.progress + '%'"></div>
+                    </div>
+                    <span class="text-xs fw-semibold">{{ audit.progress }}%</span>
+                  </div>
+                </td>
                 <td>
                   <span class="bt-badge" 
-                        [class.bt-badge-success]="audit.efficiency === 'Optimal'" 
-                        [class.bt-badge-warning]="audit.efficiency === 'Over-Budget 5%'" 
-                        [class.bt-badge-danger]="audit.efficiency === 'Warning Over-run'">
-                    {{ audit.efficiency }}
+                        [class.bt-badge-success]="audit.spent <= parseBudgetNum(audit.contractValue)" 
+                        [class.bt-badge-danger]="audit.spent > parseBudgetNum(audit.contractValue)">
+                    {{ audit.spent <= parseBudgetNum(audit.contractValue) ? 'Optimal' : 'Over-Budget' }}
                   </span>
                 </td>
+              </tr>
+              <tr *ngIf="audits.length === 0">
+                <td colspan="5" class="text-center py-4 text-muted">No active projects found.</td>
               </tr>
             </tbody>
           </table>
@@ -224,21 +240,30 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
   @ViewChild('donutChart') donutChart!: ElementRef<HTMLCanvasElement>;
 
   reports: Report[] = [];
-  projects: { id: number; name: string }[] = [
-    { id: 1, name: 'Oakridge housing' },
-    { id: 2, name: 'SVS housing' }
-  ];
-
-
+  projects: { id: number; name: string }[] = [];
   showGenerateModal = false;
   isSubmitting = false;
   reportForm!: FormGroup;
-
   audits: any[] = [];
+
+  // Dynamic Chart Variables
+  realProjects: Project[] = [];
+  realPOs: PurchaseOrderRecord[] = [];
+  realInvoices: InvoiceRecord[] = [];
+  realWorkers: Worker[] = [];
+
+  // Percentage Calculations
+  skilledPct = 0;
+  generalPct = 0;
+  supervisorPct = 0;
 
   constructor(
     private reportService: ReportService,
     private projectService: ProjectService,
+    private workforceService: WorkforceService,
+    private inventoryService: InventoryService,
+    private poService: PurchaseOrderService,
+    private invoiceService: InvoiceService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {}
@@ -248,8 +273,68 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
       reportType: ['Financial Audit Report', Validators.required],
       projectId: [1, Validators.required]
     });
-    this.loadProjects();
-    this.loadReports();
+    this.loadAllData();
+  }
+
+  loadAllData(): void {
+    // Load projects, POs, invoices, workers in parallel to avoid multiple redraws
+    forkJoin({
+      projects: this.projectService.getProjects(),
+      pos: this.poService.getPurchaseOrders(),
+      invoices: this.invoiceService.getInvoices(),
+      workers: this.workforceService.getWorkers(),
+      reports: this.reportService.getReports()
+    }).subscribe({
+      next: (res) => {
+        this.realProjects = res.projects;
+        this.realPOs = res.pos;
+        this.realInvoices = res.invoices;
+        this.realWorkers = res.workers;
+        this.projects = res.projects.map(p => ({ id: p.id, name: p.name }));
+        
+        if (this.projects.length > 0 && this.reportForm) {
+          this.reportForm.patchValue({ projectId: this.projects[0].id });
+        }
+
+        // Map Reports
+        this.reports = res.reports.map(r => {
+          const matchingProj = this.projects.find(p => p.id === r.projectId);
+          return {
+            ...r,
+            projectName: matchingProj ? matchingProj.name : `Project #${r.projectId}`
+          };
+        });
+
+        // Compute Spent Map dynamically
+        const spentMap: { [projectId: number]: number } = {};
+        res.projects.forEach(p => {
+          const projectPOs = res.pos.filter(po => po.projectId === p.id);
+          const poIds = projectPOs.map(po => po.id);
+          const projectInvoices = res.invoices.filter(inv => poIds.includes(inv.purchaseOrderId));
+          spentMap[p.id] = projectInvoices.reduce((sum, inv) => sum + inv.amount + inv.gst, 0);
+        });
+
+        // Map Audits
+        this.audits = res.projects.map(p => {
+          return {
+            name: p.name,
+            contractValue: p.budget,
+            spent: spentMap[p.id] || 0,
+            progress: p.progress || 0
+          };
+        });
+
+        // Compute workforce percentages
+        this.computeWorkforcePercentages(res.workers);
+
+        // Trigger chart redraws
+        this.drawBarChart();
+        this.drawDonutChart();
+      },
+      error: () => {
+        this.toastService.showError('Failed to load real-time analytics data.');
+      }
+    });
   }
 
   loadReports(): void {
@@ -264,33 +349,34 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  loadProjects(): void {
-    this.projectService.getProjects().subscribe({
-      next: (projList) => {
-        if (projList && projList.length > 0) {
-          this.projects = projList.map(p => ({ id: p.id, name: p.name }));
-          if (this.reportForm) {
-            this.reportForm.patchValue({ projectId: projList[0].id });
-          }
-          this.audits = projList.map(p => {
-            const b = Number(p.budget) || 0;
-            return {
-              name: p.name,
-              contractValue: `$${b.toLocaleString()}`,
-              spent: `$${Math.round(b * 0.65).toLocaleString()}`,
-              materials: `$${Math.round(b * 0.35).toLocaleString()}`,
-              labor: `$${Math.round(b * 0.30).toLocaleString()}`,
-              efficiency: p.status === 'Completed' ? 'Optimal' : 'Optimal'
-            };
-          });
+  computeWorkforcePercentages(workers: Worker[]): void {
+    if (workers.length === 0) {
+      this.skilledPct = 0;
+      this.generalPct = 0;
+      this.supervisorPct = 0;
+      return;
+    }
 
-          this.loadReports();
-        }
-      },
-      error: () => {}
+    let skilled = 0;
+    let general = 0;
+    let supervisor = 0;
+
+    workers.forEach(w => {
+      const designation = (w.category || '').toLowerCase();
+      if (designation.includes('supervisor') || designation.includes('engineer') || designation.includes('manager')) {
+        supervisor++;
+      } else if (designation.includes('helper') || designation.includes('labor') || designation.includes('general')) {
+        general++;
+      } else {
+        skilled++;
+      }
     });
-  }
 
+    const total = workers.length;
+    this.skilledPct = Math.round((skilled / total) * 100);
+    this.generalPct = Math.round((general / total) * 100);
+    this.supervisorPct = 100 - (this.skilledPct + this.generalPct); // Ensure sum is exactly 100
+  }
 
   onGenerateReport(): void {
     if (this.reportForm.invalid) return;
@@ -335,6 +421,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   drawBarChart(): void {
+    if (!this.barChart) return;
     const canvas = this.barChart.nativeElement;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -347,7 +434,14 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
     const width = rect.width;
     const height = rect.height;
 
-    const paddingLeft = 35;
+    ctx.clearRect(0, 0, width, height);
+
+    if (this.realProjects.length === 0) {
+      this.drawEmptyState(ctx, width, height, 'No Project Data Available');
+      return;
+    }
+
+    const paddingLeft = 45;
     const paddingRight = 15;
     const paddingTop = 20;
     const paddingBottom = 30;
@@ -355,12 +449,26 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
 
-    const categories = ['Found.', 'Struct.', 'Machin.', 'Admin.'];
-    const allocated = [35, 60, 25, 10];
-    const spent = [32, 48, 21, 9.5];
+    // Map projects (top 4 projects to fit cleanly)
+    const displayProjects = this.realProjects.slice(0, 4);
+    const categories = displayProjects.map(p => p.name.substring(0, 10));
+    
+    // Convert budgets and spent sums
+    const allocated = displayProjects.map(p => this.parseBudgetNum(p.budget));
+    
+    // Compute spent
+    const spent = displayProjects.map(p => {
+      const projectPOs = this.realPOs.filter(po => po.projectId === p.id);
+      const poIds = projectPOs.map(po => po.id);
+      const projectInvoices = this.realInvoices.filter(inv => poIds.includes(inv.purchaseOrderId));
+      return projectInvoices.reduce((sum, inv) => sum + inv.amount + inv.gst, 0);
+    });
 
-    ctx.clearRect(0, 0, width, height);
+    // Find max value for Y scale
+    const maxVal = Math.max(...allocated, ...spent, 10000);
+    const yMax = Math.ceil(maxVal / 10000) * 10000;
 
+    // Draw Grid Lines (Horizontal)
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
@@ -373,22 +481,25 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
       ctx.fillStyle = '#64748b';
       ctx.font = '10px Outfit';
       ctx.textAlign = 'right';
-      ctx.fillText((80 - (i * 80) / 4).toString(), paddingLeft - 8, y + 3);
+      const labelVal = yMax - (i * yMax) / 4;
+      ctx.fillText(`$${(labelVal / 1000).toFixed(0)}k`, paddingLeft - 8, y + 3);
     }
 
-    const barWidth = 18;
+    const barWidth = 14;
     const groupWidth = chartWidth / categories.length;
 
     categories.forEach((cat, i) => {
       const startX = paddingLeft + i * groupWidth + (groupWidth - barWidth * 2 - 6) / 2;
 
+      // Budget (Blue Bar)
       ctx.fillStyle = '#3b82f6';
-      const allocatedHeight = chartHeight * (allocated[i] / 80);
+      const allocatedHeight = chartHeight * (allocated[i] / yMax);
       const allocatedY = paddingTop + chartHeight - allocatedHeight;
       ctx.fillRect(startX, allocatedY, barWidth, allocatedHeight);
 
+      // Spent (Red Bar)
       ctx.fillStyle = '#ef4444';
-      const spentHeight = chartHeight * (spent[i] / 80);
+      const spentHeight = chartHeight * (spent[i] / yMax);
       const spentY = paddingTop + chartHeight - spentHeight;
       ctx.fillRect(startX + barWidth + 4, spentY, barWidth, spentHeight);
 
@@ -399,6 +510,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   drawDonutChart(): void {
+    if (!this.donutChart) return;
     const canvas = this.donutChart.nativeElement;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -411,18 +523,24 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
     const width = rect.width;
     const height = rect.height;
 
+    ctx.clearRect(0, 0, width, height);
+
+    if (this.realWorkers.length === 0) {
+      this.drawEmptyState(ctx, width, height, 'No Workforce Data Available');
+      return;
+    }
+
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 25;
 
-    ctx.clearRect(0, 0, width, height);
-
-    const values = [0.45, 0.35, 0.20];
+    const values = [this.skilledPct / 100, this.generalPct / 100, this.supervisorPct / 100];
     const colors = ['#ff7a00', '#10b981', '#06b6d4'];
 
     let currentAngle = -Math.PI / 2;
 
     values.forEach((val, i) => {
+      if (val === 0) return;
       const segmentAngle = val * Math.PI * 2;
       ctx.fillStyle = colors[i];
       ctx.beginPath();
@@ -433,19 +551,39 @@ export class AnalyticsComponent implements OnInit, AfterViewInit {
       currentAngle += segmentAngle;
     });
 
+    // Inner Circle for Donut hole
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.6, 0, Math.PI * 2);
     ctx.fill();
 
+    // Center Text
     ctx.fillStyle = '#1e293b';
     ctx.font = 'bold 16px Outfit';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('184', centerX, centerY - 6);
+    ctx.fillText(this.realWorkers.length.toString(), centerX, centerY - 6);
 
     ctx.fillStyle = '#64748b';
     ctx.font = '10px Outfit';
     ctx.fillText('Total Staff', centerX, centerY + 10);
+  }
+
+  drawEmptyState(ctx: CanvasRenderingContext2D, width: number, height: number, message: string): void {
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px Outfit';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(message, width / 2, height / 2);
+  }
+
+  parseBudgetNum(value: string): number {
+    if (!value) return 0;
+    const cleaned = value.replace(/[$,\s]/g, '').toUpperCase();
+    const multiplier = cleaned.endsWith('M') ? 1_000_000 : cleaned.endsWith('K') ? 1_000 : 1;
+    const amount = Number.parseFloat(cleaned.replace(/[MK]$/, ''));
+    return Number.isFinite(amount) ? amount * multiplier : 0;
   }
 }

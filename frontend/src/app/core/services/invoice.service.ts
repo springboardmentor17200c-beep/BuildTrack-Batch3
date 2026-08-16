@@ -15,11 +15,13 @@ interface ApiInvoice {
   payment_status: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class InvoiceService {
-  private apiUrl = 'http://127.0.0.1:8000/invoices';
+  private apiUrl = `${environment.apiUrl}/invoices`;
 
   constructor(private http: HttpClient) {}
 

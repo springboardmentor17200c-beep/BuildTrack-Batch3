@@ -18,11 +18,13 @@ interface ApiMaterialRequest {
   created_at?: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class MaterialRequestService {
-  private apiUrl = 'http://127.0.0.1:8000/requests';
+  private apiUrl = `${environment.apiUrl}/requests`;
 
   constructor(
     private http: HttpClient,

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { ReportService } from '../../core/services/report.service';
+import { environment } from '../../../environments/environment';
 import { ProjectService } from '../../core/services/project.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -107,11 +108,11 @@ import { Project } from '../../core/interfaces/project.interface';
                     </td>
                     <td class="text-end">
                       <div class="d-flex justify-content-end gap-1">
-                        <a [href]="report.reportUrl.startsWith('http') ? report.reportUrl : 'http://127.0.0.1:8000' + report.reportUrl" target="_blank" class="btn btn-xs btn-outline-danger py-1 px-2 text-xxs d-flex align-items-center gap-1">
+                        <a [href]="report.reportUrl.startsWith('http') ? report.reportUrl : apiUrl + report.reportUrl" target="_blank" class="btn btn-xs btn-outline-danger py-1 px-2 text-xxs d-flex align-items-center gap-1">
                           <mat-icon style="font-size: 14px; width: 14px; height: 14px;">picture_as_pdf</mat-icon>
                           <span>PDF</span>
                         </a>
-                        <a [href]="(report.excelUrl && report.excelUrl.startsWith('http')) ? report.excelUrl : 'http://127.0.0.1:8000' + (report.excelUrl || report.reportUrl.replace('.pdf', '.csv'))" target="_blank" class="btn btn-xs btn-outline-success py-1 px-2 text-xxs d-flex align-items-center gap-1">
+                        <a [href]="(report.excelUrl && report.excelUrl.startsWith('http')) ? report.excelUrl : apiUrl + (report.excelUrl || report.reportUrl.replace('.pdf', '.csv'))" target="_blank" class="btn btn-xs btn-outline-success py-1 px-2 text-xxs d-flex align-items-center gap-1">
                           <mat-icon style="font-size: 14px; width: 14px; height: 14px;">table_chart</mat-icon>
                           <span>Excel</span>
                         </a>
@@ -143,6 +144,7 @@ import { Project } from '../../core/interfaces/project.interface';
   `]
 })
 export class ReportsComponent implements OnInit {
+  apiUrl = environment.apiUrl;
   reports: Report[] = [];
   filteredReports: Report[] = [];
   projects: Project[] = [];

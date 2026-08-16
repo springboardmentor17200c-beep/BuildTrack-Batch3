@@ -21,11 +21,13 @@ interface ApiProcurement {
   created_at?: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class ProcurementService {
-  private apiUrl = 'http://127.0.0.1:8000/procurements';
+  private apiUrl = `${environment.apiUrl}/procurements`;
 
   constructor(
     private http: HttpClient,

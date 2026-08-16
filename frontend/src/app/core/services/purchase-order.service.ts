@@ -19,11 +19,13 @@ interface ApiPurchaseOrder {
   created_at?: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class PurchaseOrderService {
-  private apiUrl = 'http://127.0.0.1:8000/purchase-orders';
+  private apiUrl = `${environment.apiUrl}/purchase-orders`;
 
   constructor(private http: HttpClient) {}
 

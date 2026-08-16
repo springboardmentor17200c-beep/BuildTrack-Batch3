@@ -31,12 +31,14 @@ export interface ApiProcurement {
 }
 
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class InventoryService {
-  private inventoryUrl = 'http://127.0.0.1:8000/inventory';
-  private procurementUrl = 'http://127.0.0.1:8000/procurements';
+  private inventoryUrl = `${environment.apiUrl}/inventory`;
+  private procurementUrl = `${environment.apiUrl}/procurements`;
 
   private materialsSubject = new BehaviorSubject<Material[]>([]);
   materials$ = this.materialsSubject.asObservable();

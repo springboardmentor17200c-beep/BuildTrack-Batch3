@@ -13,11 +13,13 @@ export interface ApiResource {
   status: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class ResourceService {
-  private apiUrl = 'http://127.0.0.1:8000/resources';
+  private apiUrl = `${environment.apiUrl}/resources`;
 
   private equipmentSubject = new BehaviorSubject<Equipment[]>([]);
   equipment$ = this.equipmentSubject.asObservable();
