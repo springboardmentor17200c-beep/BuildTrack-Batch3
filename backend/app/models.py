@@ -1,3 +1,6 @@
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import (
     Column,
     Integer,
@@ -13,8 +16,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
+
+
 
 class ProjectStatusEnum(PyEnum):
     Pending = "Pending"
@@ -48,6 +53,10 @@ class ReportTypeEnum(PyEnum):
     ProjectProgress = "ProjectProgress"
     BudgetCost = "BudgetCost"
 
+
+
+    
+
 class User(Base):
     __tablename__ = "users"
 
@@ -55,7 +64,11 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    role = Column(String(30), nullable=False, default="Viewer")
+    role = Column(
+    String(30),
+    nullable=False,
+    default="Client"
+)
     phone = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -71,31 +84,76 @@ class Project(Base):
     project_name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     location = Column(String(200), nullable=False)
+
+    # ADD THESE
+    category = Column(String(50), nullable=True)
     budget = Column(Float, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
-    status = Column(Enum(ProjectStatusEnum), default=ProjectStatusEnum.Pending, nullable=False)
-    manager_id = Column(Integer, ForeignKey("users.id"), index=True)
 
+    status = Column(
+        Enum(ProjectStatusEnum),
+        default=ProjectStatusEnum.Pending,
+        nullable=False
+    )
+
+    manager_id = Column( Integer,ForeignKey("users.id"),index=True )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
 
     manager = relationship("User", back_populates="projects")
-    milestones = relationship("ProjectMilestone", back_populates="project", cascade="all, delete-orphan")
-    resources = relationship("Resource", back_populates="project", cascade="all, delete-orphan")
-    inventory = relationship("Inventory", back_populates="project", cascade="all, delete-orphan")
-    workers = relationship("Worker", back_populates="project", cascade="all, delete-orphan")
-    attendance = relationship("Attendance", back_populates="project", cascade="all, delete-orphan")
-    procurements = relationship("Procurement", back_populates="project", cascade="all, delete-orphan")
-    reports = relationship("Report", back_populates="project", cascade="all, delete-orphan")
-    documents = relationship("Document", back_populates="project")
+    milestones = relationship(
+        "ProjectMilestone",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    resources = relationship(
+        "Resource",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    inventory = relationship(
+        "Inventory",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    workers = relationship(
+        "Worker",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    attendance = relationship(
+        "Attendance",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    procurements = relationship(
+        "Procurement",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    reports = relationship(
+        "Report",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    documents = relationship(
+        "Document",
+        back_populates="project"
+    )
 
 class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    name = Column(String(150), nullable=False)
+    milestone_name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     due_date = Column(Date, nullable=False)
+    completed_date = Column(Date, nullable=True)
     status = Column(String(50), default="Pending")
 
     project = relationship("Project", back_populates="milestones")
@@ -105,7 +163,7 @@ class Resource(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    name = Column(String(100), nullable=False)
+    resource_name = Column(String(100), nullable=False)
     category = Column(String(50), nullable=False)
     quantity = Column(Integer, nullable=False)
     unit = Column(String(20), nullable=False, default="Units")
@@ -119,6 +177,7 @@ class Inventory(Base):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     material_name = Column(String(100), nullable=False)
+    category = Column(String(50), default="Cement")
     quantity = Column(Integer, nullable=False)
     unit = Column(String(20), nullable=False)
     minimum_stock = Column(Integer, default=10)
@@ -145,7 +204,7 @@ class Attendance(Base):
     id = Column(Integer, primary_key=True)
     worker_id = Column(Integer, ForeignKey("workers.id"), index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    attendance_date = Column(Date, nullable=False)
+    attendance_date = Column(Date, nullable=False,index=True)
     status = Column(Enum(AttendanceStatusEnum), nullable=False)
     check_in = Column(String(20), nullable=True)
     check_out = Column(String(20), nullable=True)
@@ -167,7 +226,7 @@ class Procurement(Base):
     quantity = Column(Integer)
     total_cost = Column(Float, nullable=False)
     purchase_date = Column(Date)
-    status = Column(Enum(ProcurementStatusEnum), default=ProcurementStatusEnum.Pending, nullable=False)
+    status = Column(Enum(ProcurementStatusEnum), default=ProcurementStatusEnum.Pending, nullable=False,index=True)
 
     project = relationship("Project", back_populates="procurements")
 
@@ -185,19 +244,26 @@ class Notification(Base):
     user = relationship("User", back_populates="notifications")
 
 
+
 class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     generated_by = Column(Integer, ForeignKey("users.id"), index=True)
-    report_type = Column(Enum(ReportTypeEnum), nullable=False)
+    report_type = Column(Enum(ReportTypeEnum), nullable=False,index=True)
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="reports")
     creator = relationship("User", back_populates="reports")
 
+
+
+
+
+
+    
 class Document(Base):
     __tablename__ = "documents"
 
@@ -234,8 +300,19 @@ class MaterialRequest(Base):
     material_name = Column(String(100), nullable=False)
     quantity = Column(Integer, nullable=False)
     required_date = Column(Date, nullable=False)
-    priority = Column(String(20), default="Medium")
-    status = Column(String(20), default="Pending")
+    priority = Column(
+    String(20),
+    default="Medium",
+    nullable=False,
+    index=True
+)
+
+    status = Column(
+    String(20),
+    default="Pending",
+    nullable=False,
+    index=True
+)
     comments = Column(Text, nullable=True)
     requested_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -256,7 +333,12 @@ class PurchaseOrder(Base):
     unit_price = Column(Float, nullable=False, default=0.0)
     total_amount = Column(Float, nullable=False, default=0.0)
     expected_delivery_date = Column(Date, nullable=True)
-    status = Column(String(30), default="Created")
+    status = Column(
+    String(30),
+    default="Created",
+    nullable=False,
+    index=True
+)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     vendor = relationship("Vendor")
@@ -273,7 +355,476 @@ class Invoice(Base):
     amount = Column(Float, nullable=False, default=0.0)
     gst = Column(Float, nullable=False, default=0.0)
     invoice_date = Column(Date, nullable=False)
-    payment_status = Column(String(30), default="Pending")
-
+    payment_status = Column(
+    String(30),
+    default="Pending",
+    nullable=False,
+    index=True
+)
     vendor = relationship("Vendor")
     purchase_order = relationship("PurchaseOrder")
+
+
+class Analytics(Base):
+    __tablename__ = "analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id"),
+        index=True,
+        nullable=False
+    )
+
+    total_budget = Column(Float, nullable=False, default=0)
+
+    total_expense = Column(Float, nullable=False, default=0)
+
+    completed_milestones = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    total_milestones = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    total_workers = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    total_inventory = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    pending_procurements = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    generated_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "total_budget >= 0",
+            name="check_analytics_budget"
+        ),
+        CheckConstraint(
+            "total_expense >= 0",
+            name="check_analytics_expense"
+        ),
+        CheckConstraint(
+            "completed_milestones >= 0",
+            name="check_completed_milestones"
+        ),
+        CheckConstraint(
+            "total_milestones >= 0",
+            name="check_total_milestones"
+        ),
+        CheckConstraint(
+            "total_workers >= 0",
+            name="check_total_workers"
+        ),
+        CheckConstraint(
+            "total_inventory >= 0",
+            name="check_total_inventory"
+        ),
+        CheckConstraint(
+            "pending_procurements >= 0",
+            name="check_pending_procurements"
+        ),
+    )
+
+    project = relationship("Project")
+
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey(
+            "projects.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False,
+        index=True
+    )
+
+    expense_date = Column(
+        Date,
+        nullable=False,
+        index=True
+    )
+
+    category = Column(
+        String(50),
+        nullable=False,
+        index=True
+    )
+
+    description = Column(
+        Text,
+        nullable=True
+    )
+
+    amount = Column(
+        Float,
+        nullable=False,
+        default=0
+    )
+
+    recorded_by = Column(
+        Integer,
+        ForeignKey(
+            "users.id",
+            ondelete="SET NULL"
+        ),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "amount >= 0",
+            name="expense_amount_valid"
+        ),
+    )
+
+    project = relationship("Project")
+    recorder = relationship("User")
+
+
+class ResourceAllocation(Base):
+    __tablename__ = "resource_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    resource_id = Column(
+        Integer,
+        ForeignKey("resources.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    allocated_quantity = Column(Integer, nullable=False)
+
+    allocation_date = Column(Date, nullable=False)
+
+    returned_date = Column(Date, nullable=True)
+
+    status = Column(
+        String(30),
+        nullable=False,
+        default="Allocated"
+    )
+
+    resource = relationship("Resource")
+    project = relationship("Project")
+
+
+
+class ResourceMaintenance(Base):
+    __tablename__ = "resource_maintenance"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    resource_id = Column(
+        Integer,
+        ForeignKey("resources.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    maintenance_date = Column(Date, nullable=False)
+
+    next_maintenance_date = Column(Date, nullable=True)
+
+    maintenance_type = Column(String(100), nullable=True)
+
+    cost = Column(Float, default=0)
+
+    description = Column(Text, nullable=True)
+
+    status = Column(
+        String(30),
+        default="Scheduled"
+    )
+
+    resource = relationship("Resource")    
+
+
+
+class SiteProgressReport(Base):
+    __tablename__ = "site_progress_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    report_date = Column(Date, nullable=False, index=True)
+
+    report_type = Column(String(20), nullable=False)
+
+    progress_category = Column(String(50), nullable=False)
+
+    description = Column(Text, nullable=True)
+
+    completion_percentage = Column(
+        Float,
+        nullable=False,
+        default=0
+    )
+
+    delay_days = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    delay_reason = Column(Text, nullable=True)
+
+    reported_by = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    project = relationship("Project")
+    reporter = relationship("User")
+
+
+
+class SiteActivityLog(Base):
+    __tablename__ = "site_activity_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    activity_date = Column(Date, nullable=False)
+
+    activity_type = Column(String(100), nullable=False)
+
+    description = Column(Text, nullable=True)
+
+    performed_by = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    project = relationship("Project")
+    performer = relationship("User")
+
+
+
+class WorkerShift(Base):
+    __tablename__ = "worker_shifts"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    worker_id = Column(
+        Integer,
+        ForeignKey("workers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    shift_date = Column(Date, nullable=False, index=True)
+
+    shift_name = Column(String(50), nullable=False)
+
+    start_time = Column(String(10), nullable=False)
+
+    end_time = Column(String(10), nullable=False)
+
+    status = Column(
+        String(30),
+        nullable=False,
+        default="Scheduled"
+    )
+
+    worker = relationship("Worker")
+    project = relationship("Project")    
+
+
+
+
+class PayrollRecord(Base):
+    __tablename__ = "payroll_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    worker_id = Column(
+        Integer,
+        ForeignKey("workers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
+    pay_period_start = Column(Date, nullable=False)
+
+    pay_period_end = Column(Date, nullable=False)
+
+    basic_amount = Column(Float, nullable=False, default=0)
+
+    overtime_amount = Column(Float, nullable=False, default=0)
+
+    deduction_amount = Column(Float, nullable=False, default=0)
+
+    net_amount = Column(Float, nullable=False, default=0)
+
+    payment_status = Column(
+        String(30),
+        nullable=False,
+        default="Pending"
+    )
+
+    paid_date = Column(Date, nullable=True)
+
+    worker = relationship("Worker")
+    project = relationship("Project")    
+
+
+class MaterialAllocation(Base):
+    __tablename__ = "material_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    inventory_id = Column(
+        Integer,
+        ForeignKey("inventory.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    quantity = Column(Integer, nullable=False)
+
+    allocation_date = Column(Date, nullable=False)
+
+    allocated_to = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    status = Column(
+        String(30),
+        default="Allocated"
+    )
+
+    inventory = relationship("Inventory")
+    project = relationship("Project")
+    user = relationship("User")    
+
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    token_hash = Column(
+    String(255),
+    unique=True,
+    nullable=False,
+    index=True
+)
+
+    expires_at = Column(
+        DateTime(timezone=True),
+        nullable=False
+    )
+
+    used = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    user = relationship("User")

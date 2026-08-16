@@ -2,6 +2,14 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import hash_password
+from sqlalchemy import func
+from sqlalchemy import extract
+from datetime import date
+from datetime import datetime, timezone
+import hashlib
+
+
+
 
 # ======================================================
 # USERS CRUD
@@ -11,7 +19,7 @@ def create_user(db: Session, user: schemas.UserRegister):
     db_user = models.User(
         name=user.name,
         email=user.email,
-        password=hash_password(user.password),   # Later replace with hashed password
+        password=hash_password(user.password),   
         role=user.role,
         phone=user.phone
     )
@@ -43,18 +51,25 @@ def get_user_by_email(db: Session, email: str):
     )
 
 
-def update_user(db: Session, user_id: int, user: schemas.UserRegister):
-
+def update_user(
+    db: Session,
+    user_id: int,
+    user: schemas.UserUpdate
+):
     db_user = get_user(db, user_id)
 
     if not db_user:
         return None
 
-    db_user.name = user.name
-    db_user.email = user.email
-    db_user.password = hash_password(user.password)
-    db_user.role = user.role
-    db_user.phone = user.phone
+    update_data = user.model_dump(exclude_unset=True)
+
+    if "password" in update_data:
+        update_data["password"] = hash_password(
+            update_data["password"]
+        )
+
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
 
     db.commit()
     db.refresh(db_user)
@@ -91,25 +106,20 @@ def update_user_role(db: Session, user_id: int, role: str):
 # PROJECT CRUD
 # ======================================================
 
-def search_project(db: Session, name: str):
-    return (
-        db.query(models.Project)
-        .filter(models.Project.project_name.ilike(f"%{name}%"))
-        .all()
-    )
 
 def create_project(db: Session, project: schemas.ProjectCreate):
 
     db_project = models.Project(
-        project_name=project.project_name,
-        description=project.description,
-        location=project.location,
-        budget=project.budget,
-        start_date=project.start_date,
-        end_date=project.end_date,
-        status=project.status,
-        manager_id=project.manager_id
-    )
+    project_name=project.project_name,
+    description=project.description,
+    location=project.location,
+    category=project.category,
+    budget=project.budget,
+    start_date=project.start_date,
+    end_date=project.end_date,
+    status=project.status,
+    manager_id=project.manager_id
+)
 
     db.add(db_project)
     db.commit()
@@ -131,28 +141,7 @@ def get_project(db: Session, project_id: int):
     )
 
 
-def update_project(db: Session,
-                   project_id: int,
-                   project: schemas.ProjectCreate):
 
-    db_project = get_project(db, project_id)
-
-    if not db_project:
-        return None
-
-    db_project.project_name = project.project_name
-    db_project.description = project.description
-    db_project.location = project.location
-    db_project.budget = project.budget
-    db_project.start_date = project.start_date
-    db_project.end_date = project.end_date
-    db_project.status = project.status
-    db_project.manager_id = project.manager_id
-
-    db.commit()
-    db.refresh(db_project)
-
-    return db_project
 
 
 def delete_project(db: Session,
@@ -168,17 +157,44 @@ def delete_project(db: Session,
 
     return db_project
 
+def update_project(
+    db: Session,
+    project_id: int,
+    project: schemas.ProjectUpdate
+):
+    db_project = get_project(db, project_id)
 
+    if not db_project:
+        return None
+    for key, value in project.model_dump(exclude_unset=True).items():
+        setattr(db_project, key, value)
+
+    db.commit()
+    db.refresh(db_project)
+
+    return db_project
+
+
+def search_project(db: Session, name: str):
+    return (
+        db.query(models.Project)
+        .filter(models.Project.project_name.ilike(f"%{name}%"))
+        .all()
+    )
 
 # ======================================================
 # PROJECT MILESTONES CRUD
 # ======================================================
 
-def create_milestone(db: Session, milestone: schemas.MilestoneCreate):
+def create_milestone(
+    db: Session,
+    milestone: schemas.MilestoneCreate
+):
 
     db_milestone = models.ProjectMilestone(
         project_id=milestone.project_id,
         milestone_name=milestone.milestone_name,
+        description=milestone.description,
         due_date=milestone.due_date,
         completed_date=milestone.completed_date,
         status=milestone.status
@@ -209,23 +225,20 @@ def get_milestone(db: Session, milestone_id: int):
         .first()
     )
 
-
 def update_milestone(
     db: Session,
     milestone_id: int,
-    milestone: schemas.MilestoneCreate
+    milestone: schemas.MilestoneUpdate
 ):
-
     db_milestone = get_milestone(db, milestone_id)
 
     if not db_milestone:
         return None
 
-    db_milestone.project_id = milestone.project_id
-    db_milestone.milestone_name = milestone.milestone_name
-    db_milestone.due_date = milestone.due_date
-    db_milestone.completed_date = milestone.completed_date
-    db_milestone.status = milestone.status
+    update_data = milestone.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_milestone, key, value)
 
     db.commit()
     db.refresh(db_milestone)
@@ -258,6 +271,7 @@ def create_resource(db: Session, resource: schemas.ResourceCreate):
         resource_name=resource.resource_name,
         category=resource.category,
         quantity=resource.quantity,
+        unit=resource.unit,
         status=resource.status
     )
 
@@ -286,12 +300,10 @@ def get_resource(db: Session, resource_id: int):
         .filter(models.Resource.id == resource_id)
         .first()
     )
-
-
 def update_resource(
     db: Session,
     resource_id: int,
-    resource: schemas.ResourceCreate
+    resource: schemas.ResourceUpdate
 ):
 
     db_resource = get_resource(db, resource_id)
@@ -299,11 +311,10 @@ def update_resource(
     if not db_resource:
         return None
 
-    db_resource.project_id = resource.project_id
-    db_resource.resource_name = resource.resource_name
-    db_resource.category = resource.category
-    db_resource.quantity = resource.quantity
-    db_resource.status = resource.status
+    update_data = resource.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_resource, key, value)
 
     db.commit()
     db.refresh(db_resource)
@@ -371,7 +382,7 @@ def get_inventory_item(db: Session, inventory_id: int):
 def update_inventory(
     db: Session,
     inventory_id: int,
-    inventory: schemas.InventoryCreate
+    inventory: schemas.InventoryUpdate
 ):
 
     db_inventory = get_inventory_item(db, inventory_id)
@@ -379,13 +390,10 @@ def update_inventory(
     if not db_inventory:
         return None
 
-    db_inventory.project_id = inventory.project_id
-    db_inventory.material_name = inventory.material_name
-    db_inventory.category = getattr(inventory, 'category', 'Cement') or 'Cement'
-    db_inventory.quantity = inventory.quantity
-    db_inventory.unit = inventory.unit
-    db_inventory.minimum_stock = inventory.minimum_stock
-    db_inventory.supplier = inventory.supplier
+    update_data = inventory.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_inventory, key, value)
 
     db.commit()
     db.refresh(db_inventory)
@@ -461,19 +469,17 @@ def get_worker(db: Session, worker_id: int):
 def update_worker(
     db: Session,
     worker_id: int,
-    worker: schemas.WorkerCreate
+    worker: schemas.WorkerUpdate
 ):
-
     db_worker = get_worker(db, worker_id)
 
     if not db_worker:
         return None
 
-    db_worker.project_id = worker.project_id
-    db_worker.name = worker.name
-    db_worker.phone = worker.phone
-    db_worker.designation = worker.designation
-    db_worker.salary = worker.salary
+    update_data = worker.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_worker, key, value)
 
     db.commit()
     db.refresh(db_worker)
@@ -540,20 +546,17 @@ def get_attendance_record(db: Session, attendance_id: int):
 def update_attendance(
     db: Session,
     attendance_id: int,
-    attendance: schemas.AttendanceCreate
+     attendance: schemas.AttendanceUpdate
 ):
-
     db_attendance = get_attendance_record(db, attendance_id)
 
     if not db_attendance:
         return None
 
-    db_attendance.worker_id = attendance.worker_id
-    db_attendance.project_id = attendance.project_id
-    db_attendance.attendance_date = attendance.attendance_date
-    db_attendance.status = attendance.status
-    db_attendance.check_in = attendance.check_in
-    db_attendance.check_out = attendance.check_out
+    update_data = attendance.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_attendance, key, value)
 
     db.commit()
     db.refresh(db_attendance)
@@ -621,26 +624,18 @@ def get_procurement(db: Session, procurement_id: int):
         .filter(models.Procurement.id == procurement_id)
         .first()
     )
-
-
 def update_procurement(
     db: Session,
     procurement_id: int,
-    procurement: schemas.ProcurementCreate
+    procurement: schemas.ProcurementUpdate
 ):
-
     db_procurement = get_procurement(db, procurement_id)
 
     if not db_procurement:
         return None
 
-    db_procurement.project_id = procurement.project_id
-    db_procurement.material_name = procurement.material_name
-    db_procurement.supplier = procurement.supplier
-    db_procurement.quantity = procurement.quantity
-    db_procurement.total_cost = procurement.total_cost
-    db_procurement.purchase_date = procurement.purchase_date
-    db_procurement.status = procurement.status
+    for key, value in procurement.model_dump(exclude_unset=True).items():
+        setattr(db_procurement, key, value)
 
     db.commit()
     db.refresh(db_procurement)
@@ -727,17 +722,17 @@ def get_notification(db: Session, notification_id: int):
 def update_notification(
     db: Session,
     notification_id: int,
-    notification: schemas.NotificationCreate
+    notification: schemas.NotificationUpdate
 ):
-
     db_notification = get_notification(db, notification_id)
 
     if not db_notification:
         return None
 
-    db_notification.user_id = notification.user_id
-    db_notification.title = notification.title
-    db_notification.message = notification.message
+    update_data = notification.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_notification, key, value)
 
     db.commit()
     db.refresh(db_notification)
@@ -817,22 +812,20 @@ def get_report(db: Session, report_id: int):
         .first()
     )
 
-
 def update_report(
     db: Session,
     report_id: int,
-    report: schemas.ReportCreate
+    report: schemas.ReportUpdate
 ):
-
     db_report = get_report(db, report_id)
 
     if not db_report:
         return None
 
-    db_report.project_id = report.project_id
-    db_report.generated_by = report.generated_by
-    db_report.report_type = report.report_type
-    db_report.report_url = report.report_url
+    update_data = report.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_report, key, value)
 
     db.commit()
     db.refresh(db_report)
@@ -853,21 +846,10 @@ def delete_report(db: Session, report_id: int):
     return db_report
 
 
-def search_project(db, name):
-    return db.query(models.Project).filter(
-        models.Project.project_name.ilike(f"%{name}%")
-    ).all()
 
 
 
 
-
-
-
-def low_stock(db):
-    return db.query(models.Inventory).filter(
-        models.Inventory.quantity < 10
-    ).all()
 
 
 
@@ -928,45 +910,44 @@ def available_resources(db: Session):
     ).all()
 
 
-from datetime import date
 
-def today_attendance(db):
+def today_attendance(db: Session):
     return db.query(models.Attendance).filter(
-        models.Attendance.date == date.today()
-    ).all()
+    models.Attendance.attendance_date == date.today()
+).all()
 
 
-
-
-
-def admin_dashboard(db):
-
+def admin_dashboard(db: Session):
     return {
-
+        # Basic totals
         "users": db.query(models.User).count(),
-
         "projects": db.query(models.Project).count(),
+        "workers": db.query(models.Worker).count(),
+        "inventory": db.query(models.Inventory).count(),
+        "notifications": db.query(models.Notification).count(),
 
+        # Project analytics
         "running_projects": running_projects(db),
-
         "completed_projects": completed_projects(db),
 
-        "workers": db.query(models.Worker).count(),
-
-        "inventory": db.query(models.Inventory).count(),
-
+        # Inventory analytics
         "low_stock": low_stock_count(db),
 
+        # Attendance analytics
         "attendance_today": attendance_today_count(db),
 
+        # Procurement analytics
         "pending_procurements": db.query(models.Procurement)
-            .filter(models.Procurement.status=="Pending")
-            .count()
+    .filter(
+        models.Procurement.status == "Pending"
+    )
+    .count(),
+
+        # Frontend-compatible names
+        "total_projects": db.query(models.Project).count(),
+        "total_workers": db.query(models.Worker).count(),
+        "total_inventory": db.query(models.Inventory).count()
     }
-
-
-
-
 
 def search_milestones(db: Session, name: str):
     return (
@@ -1040,14 +1021,18 @@ def completed_projects(db):
     ).count()
 
 
+def low_stock(db: Session):
+    return db.query(models.Inventory).filter(
+        models.Inventory.quantity < models.Inventory.minimum_stock
+    ).all()
 
 def low_stock_count(db):
     return db.query(models.Inventory).filter(
-        models.Inventory.quantity <
-        models.Inventory.minimum_stock
+        models.Inventory.quantity < models.Inventory.minimum_stock
     ).count()
 
-from datetime import date
+
+
 
 def attendance_today_count(db):
     return db.query(models.Attendance).filter(
@@ -1055,13 +1040,7 @@ def attendance_today_count(db):
     ).count()
 
 
-def low_stock(db: Session):
 
-    return db.query(models.Inventory).filter(
-
-        models.Inventory.quantity < 20
-
-    ).all()
 
 
 def search_resource(db: Session, keyword: str):
@@ -1079,17 +1058,16 @@ def update_stock(
     inventory_id: int,
     quantity: int
 ):
-
     item = db.query(models.Inventory).filter(
-
         models.Inventory.id == inventory_id
-
     ).first()
+
+    if not item:
+        return None
 
     item.quantity += quantity
 
     db.commit()
-
     db.refresh(item)
 
     return item
@@ -1101,17 +1079,16 @@ def assign_worker(
     worker_id: int,
     project_id: int
 ):
-
     worker = db.query(models.Worker).filter(
-
         models.Worker.id == worker_id
-
     ).first()
+
+    if not worker:
+        return None
 
     worker.project_id = project_id
 
     db.commit()
-
     db.refresh(worker)
 
     return worker
@@ -1139,10 +1116,8 @@ def mark_attendance(
 ):
 
     db_att = models.Attendance(
-
-        **attendance.dict()
-
-    )
+    **attendance.model_dump()
+)
 
     db.add(db_att)
 
@@ -1157,7 +1132,7 @@ def mark_attendance(
 
 
 
-from sqlalchemy import extract
+
 
 def monthly_report(
     db: Session,
@@ -1167,14 +1142,12 @@ def monthly_report(
 
     return db.query(models.Attendance).filter(
 
-        extract("month", models.Attendance.date) == month,
-
-        extract("year", models.Attendance.date) == year
-
+      extract("month", models.Attendance.attendance_date) == month,
+      extract("year", models.Attendance.attendance_date) == year
     ).all()
 
 
-from sqlalchemy import func
+
 
 def present_count(db: Session):
 
@@ -1185,26 +1158,10 @@ def present_count(db: Session):
     ).scalar()
 
 
-def absent_count(db: Session):
-
-    return db.query(func.count(models.Attendance.id)).filter(
-
-        models.Attendance.status == "Absent"
-
-    ).scalar()
 
 
 
-def admin_dashboard(db):
-    return {
-        "total_projects": db.query(models.Project).count(),
-        "total_workers": db.query(models.Worker).count(),
-        "total_inventory": db.query(models.Inventory).count(),
-        "completed_projects": db.query(models.Project)
-            .filter(models.Project.status == "Completed")
-            .count(),
-        "notifications": db.query(models.Notification).count()
-    }
+
 
 
 # ======================================================
@@ -1237,7 +1194,7 @@ def update_vendor(db: Session, vendor_id: int, vendor: schemas.VendorUpdate):
     db_vendor = get_vendor(db, vendor_id)
     if not db_vendor:
         return None
-    for key, val in vendor.dict(exclude_unset=True).items():
+    for key, val in vendor.model_dump(exclude_unset=True).items():
         setattr(db_vendor, key, val)
     db.commit()
     db.refresh(db_vendor)
@@ -1252,11 +1209,17 @@ def delete_vendor(db: Session, vendor_id: int):
     return db_vendor
 
 
+
+
 # ======================================================
 # MATERIAL REQUEST CRUD
 # ======================================================
 
-def create_material_request(db: Session, request: schemas.MaterialRequestCreate, user_id: Optional[int] = None):
+def create_material_request(
+    db: Session,
+    request: schemas.MaterialRequestCreate,
+    user_id: Optional[int] = None
+):
     db_request = models.MaterialRequest(
         project_id=request.project_id,
         material_name=request.material_name,
@@ -1266,114 +1229,118 @@ def create_material_request(db: Session, request: schemas.MaterialRequestCreate,
         status="Pending",
         requested_by=user_id
     )
+
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
-    return db_request
 
-def get_material_requests(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.MaterialRequest).order_by(models.MaterialRequest.id.desc()).offset(skip).limit(limit).all()
-
-def get_material_request(db: Session, request_id: int):
-    return db.query(models.MaterialRequest).filter(models.MaterialRequest.id == request_id).first()
-
-def approve_material_request(db: Session, request_id: int, comments: Optional[str] = None):
-    db_request = get_material_request(db, request_id)
-    if not db_request:
-        return None
-    db_request.status = "Approved"
-    if comments:
-        db_request.comments = comments
-    db.commit()
-    db.refresh(db_request)
-    return db_request
-
-def reject_material_request(db: Session, request_id: int, comments: Optional[str] = None):
-    db_request = get_material_request(db, request_id)
-    if not db_request:
-        return None
-    db_request.status = "Rejected"
-    if comments:
-        db_request.comments = comments
-    db.commit()
-    db.refresh(db_request)
     return db_request
 
 
-# ======================================================
-# PURCHASE ORDER CRUD
-# ======================================================
-
-def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
-    import time
-    po_no = po.po_number or f"PO-{int(time.time())}"
-    total = po.quantity * po.unit_price
-
-    db_po = models.PurchaseOrder(
-        po_number=po_no,
-        vendor_id=po.vendor_id,
-        request_id=po.request_id,
-        project_id=po.project_id,
-        material_name=po.material_name,
-        quantity=po.quantity,
-        unit_price=po.unit_price,
-        total_amount=total,
-        expected_delivery_date=po.expected_delivery_date,
-        status="Created"
+def get_material_requests(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.MaterialRequest)
+        .order_by(models.MaterialRequest.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
     )
-    db.add(db_po)
-    db.commit()
-    db.refresh(db_po)
-    return db_po
 
-def get_purchase_orders(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).offset(skip).limit(limit).all()
 
-def get_purchase_order(db: Session, po_id: int):
-    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+def get_material_request(
+    db: Session,
+    request_id: int
+):
+    return (
+        db.query(models.MaterialRequest)
+        .filter(models.MaterialRequest.id == request_id)
+        .first()
+    )
 
-def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOrderUpdate):
-    db_po = get_purchase_order(db, po_id)
-    if not db_po:
-        return None
-    for key, val in po_update.dict(exclude_unset=True).items():
-        setattr(db_po, key, val)
-    if po_update.quantity is not None or po_update.unit_price is not None:
-        db_po.total_amount = db_po.quantity * db_po.unit_price
-    db.commit()
-    db.refresh(db_po)
-    return db_po
 
-def receive_material_delivery(db: Session, po_id: int, received_quantity: Optional[int] = None, status: str = "Received"):
-    db_po = get_purchase_order(db, po_id)
-    if not db_po:
+def update_material_request(
+    db: Session,
+    request_id: int,
+    request: schemas.MaterialRequestUpdate
+):
+    db_request = get_material_request(db, request_id)
+
+    if not db_request:
         return None
 
-    qty_received = received_quantity if received_quantity is not None else db_po.quantity
-    db_po.status = status
+    update_data = request.model_dump(exclude_unset=True)
 
-    # Automatically increase inventory stock for the project!
-    existing_inventory = db.query(models.Inventory).filter(
-        models.Inventory.project_id == db_po.project_id,
-        models.Inventory.material_name.ilike(db_po.material_name)
-    ).first()
-
-    if existing_inventory:
-        existing_inventory.quantity += qty_received
-    else:
-        new_inv = models.Inventory(
-            project_id=db_po.project_id,
-            material_name=db_po.material_name,
-            quantity=qty_received,
-            unit="Bags",
-            minimum_stock=10,
-            supplier=db_po.vendor.vendor_name if db_po.vendor else "Vendor"
-        )
-        db.add(new_inv)
+    for key, value in update_data.items():
+        setattr(db_request, key, value)
 
     db.commit()
-    db.refresh(db_po)
-    return db_po
+    db.refresh(db_request)
+
+    return db_request
+
+
+def delete_material_request(
+    db: Session,
+    request_id: int
+):
+    db_request = get_material_request(db, request_id)
+
+    if not db_request:
+        return None
+
+    db.delete(db_request)
+    db.commit()
+
+    return db_request
+
+
+def approve_material_request(
+    db: Session,
+    request_id: int,
+    comments: Optional[str] = None
+):
+    db_request = get_material_request(db, request_id)
+
+    if not db_request:
+        return None
+
+    db_request.status = "Approved"
+
+    if comments:
+        db_request.comments = comments
+
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+def reject_material_request(
+    db: Session,
+    request_id: int,
+    comments: Optional[str] = None
+):
+    db_request = get_material_request(db, request_id)
+
+    if not db_request:
+        return None
+
+    db_request.status = "Rejected"
+
+    if comments:
+        db_request.comments = comments
+
+    db.commit()
+    db.refresh(db_request)
+
+    return db_request
+
+
+
 
 
 # ======================================================
@@ -1389,61 +1356,7 @@ def absent_count(db: Session):
 
 
 
-def admin_dashboard(db):
-    return {
-        "total_projects": db.query(models.Project).count(),
-        "total_workers": db.query(models.Worker).count(),
-        "total_inventory": db.query(models.Inventory).count(),
-        "completed_projects": db.query(models.Project)
-            .filter(models.Project.status == "Completed")
-            .count(),
-        "notifications": db.query(models.Notification).count()
-    }
 
-
-# ======================================================
-# VENDOR CRUD
-# ======================================================
-
-def create_vendor(db: Session, vendor: schemas.VendorCreate):
-    db_vendor = models.Vendor(
-        vendor_name=vendor.vendor_name,
-        contact_person=vendor.contact_person,
-        phone=vendor.phone,
-        email=vendor.email,
-        address=vendor.address,
-        materials=vendor.materials,
-        rating=vendor.rating or 5.0,
-        is_active=vendor.is_active if vendor.is_active is not None else True
-    )
-    db.add(db_vendor)
-    db.commit()
-    db.refresh(db_vendor)
-    return db_vendor
-
-def get_vendors(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Vendor).offset(skip).limit(limit).all()
-
-def get_vendor(db: Session, vendor_id: int):
-    return db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
-
-def update_vendor(db: Session, vendor_id: int, vendor: schemas.VendorUpdate):
-    db_vendor = get_vendor(db, vendor_id)
-    if not db_vendor:
-        return None
-    for key, val in vendor.dict(exclude_unset=True).items():
-        setattr(db_vendor, key, val)
-    db.commit()
-    db.refresh(db_vendor)
-    return db_vendor
-
-def delete_vendor(db: Session, vendor_id: int):
-    db_vendor = get_vendor(db, vendor_id)
-    if not db_vendor:
-        return None
-    db.delete(db_vendor)
-    db.commit()
-    return db_vendor
 
 
 # ======================================================
@@ -1451,126 +1364,54 @@ def delete_vendor(db: Session, vendor_id: int):
 # NOTIFICATION DISPATCHER HELPER
 # ======================================================
 
-def notify_all_accounts(db: Session, target_user_ids: List[int], title: str, message: str, notification_type: str = "Procurement Alert"):
+def notify_all_accounts(
+    db: Session,
+    target_user_ids: List[int],
+    title: str,
+    message: str,
+    notification_type: str = "Procurement Alert"
+):
     try:
         all_users = db.query(models.User).all()
+
         user_ids = set(target_user_ids)
-        for u in all_users:
-            user_ids.add(u.id)
 
-        for uid in user_ids:
-            if uid:
-                db_note = models.Notification(
-                    user_id=uid,
-                    notification_type=notification_type,
-                    title=title,
-                    message=message
+        for user in all_users:
+            user_ids.add(user.id)
+
+        for user_id in user_ids:
+            if user_id:
+                db.add(
+                    models.Notification(
+                        user_id=user_id,
+                        notification_type=notification_type,
+                        title=title,
+                        message=message
+                    )
                 )
-                db.add(db_note)
+
         db.commit()
+
     except Exception as e:
+        db.rollback()
         print("Notification Dispatch Error:", e)
-
-
-# ======================================================
-# MATERIAL REQUEST CRUD
-# ======================================================
-
-def create_material_request(db: Session, request: schemas.MaterialRequestCreate, user_id: Optional[int] = None):
-    db_request = models.MaterialRequest(
-        project_id=request.project_id,
-        material_name=request.material_name,
-        quantity=request.quantity,
-        required_date=request.required_date,
-        priority=request.priority or "Medium",
-        status="Pending",
-        requested_by=user_id
-    )
-    db.add(db_request)
-    db.commit()
-    db.refresh(db_request)
-
-    notify_all_accounts(
-        db,
-        [user_id] if user_id else [],
-        title=f"New Material Request: {db_request.material_name}",
-        message=f"Request raised for {request.quantity} units of {request.material_name} (Priority: {request.priority})."
-    )
-
-    return db_request
-
-def get_material_requests(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.MaterialRequest).order_by(models.MaterialRequest.id.desc()).offset(skip).limit(limit).all()
-
-def get_material_request(db: Session, request_id: int):
-    return db.query(models.MaterialRequest).filter(models.MaterialRequest.id == request_id).first()
-
-def approve_material_request(db: Session, request_id: int, comments: Optional[str] = None):
-    db_request = get_material_request(db, request_id)
-    if not db_request:
-        return None
-    db_request.status = "Approved"
-    if comments:
-        db_request.comments = comments
-    db.commit()
-    db.refresh(db_request)
-
-    notify_all_accounts(
-        db,
-        [db_request.requested_by] if db_request.requested_by else [],
-        title=f"Material Request Approved: #{request_id}",
-        message=f"Material request for {db_request.material_name} has been APPROVED by Management."
-    )
-
-    return db_request
-
-def reject_material_request(db: Session, request_id: int, comments: Optional[str] = None):
-    db_request = get_material_request(db, request_id)
-    if not db_request:
-        return None
-    db_request.status = "Rejected"
-    if comments:
-        db_request.comments = comments
-    db.commit()
-    db.refresh(db_request)
-
-    notify_all_accounts(
-        db,
-        [db_request.requested_by] if db_request.requested_by else [],
-        title=f"Material Request Rejected: #{request_id}",
-        message=f"Material request for {db_request.material_name} was REJECTED by Management."
-    )
-
-    return db_request
-
-def update_material_request(db: Session, request_id: int, request_update: schemas.MaterialRequestCreate):
-    db_req = get_material_request(db, request_id)
-    if not db_req:
-        return None
-    for key, val in request_update.dict(exclude_unset=True).items():
-        if val is not None:
-            setattr(db_req, key, val)
-    db.commit()
-    db.refresh(db_req)
-    return db_req
-
-def delete_material_request(db: Session, request_id: int):
-    db_req = get_material_request(db, request_id)
-    if not db_req:
-        return None
-    db.delete(db_req)
-    db.commit()
-    return db_req
-
 
 
 # ======================================================
 # PURCHASE ORDER CRUD
 # ======================================================
 
-def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
-    import time
-    po_no = po.po_number or f"PO-{int(time.time())}"
+def create_purchase_order(
+    db: Session,
+    po: schemas.PurchaseOrderCreate
+):
+    import uuid
+
+    po_no = (
+        po.po_number
+        or f"PO-{uuid.uuid4().hex[:8].upper()}"
+    )
+
     total = po.quantity * po.unit_price
 
     db_po = models.PurchaseOrder(
@@ -1585,6 +1426,7 @@ def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
         expected_delivery_date=po.expected_delivery_date,
         status="Created"
     )
+
     db.add(db_po)
     db.commit()
     db.refresh(db_po)
@@ -1593,62 +1435,147 @@ def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
         db,
         [],
         title=f"New PO Issued: {po_no}",
-        message=f"Purchase Order {po_no} generated for {po.quantity} units of {po.material_name} (Total: ${total:,.2f})."
+        message=(
+            f"Purchase Order {po_no} generated for "
+            f"{po.quantity} units of {po.material_name} "
+            f"(Total: ₹{total:,.2f})."
+        )
     )
 
     return db_po
 
-def get_purchase_orders(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).offset(skip).limit(limit).all()
 
-def get_purchase_order(db: Session, po_id: int):
-    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+def get_purchase_orders(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.PurchaseOrder)
+        .order_by(models.PurchaseOrder.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOrderUpdate):
+
+def get_purchase_order(
+    db: Session,
+    po_id: int
+):
+    return (
+        db.query(models.PurchaseOrder)
+        .filter(models.PurchaseOrder.id == po_id)
+        .first()
+    )
+
+
+def update_purchase_order(
+    db: Session,
+    po_id: int,
+    po_update: schemas.PurchaseOrderUpdate
+):
     db_po = get_purchase_order(db, po_id)
+
     if not db_po:
         return None
-    for key, val in po_update.dict(exclude_unset=True).items():
-        setattr(db_po, key, val)
-    if po_update.quantity is not None or po_update.unit_price is not None:
-        db_po.total_amount = db_po.quantity * db_po.unit_price
+
+    update_data = po_update.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_po, key, value)
+
+    if "quantity" in update_data or "unit_price" in update_data:
+        db_po.total_amount = (
+            db_po.quantity * db_po.unit_price
+        )
+
     db.commit()
     db.refresh(db_po)
 
     notify_all_accounts(
         db,
         [],
-        title=f"PO Status Updated: {db_po.po_number}",
-        message=f"Purchase Order {db_po.po_number} for {db_po.material_name} status updated to '{db_po.status}'."
+        title=f"PO Updated: {db_po.po_number}",
+        message=(
+            f"Purchase Order {db_po.po_number} for "
+            f"{db_po.material_name} has been updated. "
+            f"Status: {db_po.status}"
+        )
     )
 
     return db_po
 
-def receive_material_delivery(db: Session, po_id: int, received_quantity: Optional[int] = None, status: str = "Received"):
+
+def delete_purchase_order(
+    db: Session,
+    po_id: int
+):
     db_po = get_purchase_order(db, po_id)
+
     if not db_po:
         return None
 
-    qty_received = received_quantity if received_quantity is not None else db_po.quantity
+    db.delete(db_po)
+    db.commit()
+
+    return db_po
+
+
+def receive_material_delivery(
+    db: Session,
+    po_id: int,
+    received_quantity: Optional[int] = None,
+    status: str = "Received"
+):
+    db_po = get_purchase_order(db, po_id)
+
+    if not db_po:
+        return None
+
+    if db_po.status == "Received":
+        return None
+
+    qty_received = (
+        received_quantity
+        if received_quantity is not None
+        else db_po.quantity
+    )
+
+    if qty_received <= 0:
+        return None
+
     db_po.status = status
 
-    # Automatically increase inventory stock for the project!
-    existing_inventory = db.query(models.Inventory).filter(
-        models.Inventory.project_id == db_po.project_id,
-        models.Inventory.material_name.ilike(db_po.material_name)
-    ).first()
+    existing_inventory = (
+        db.query(models.Inventory)
+        .filter(
+            models.Inventory.project_id == db_po.project_id,
+            models.Inventory.material_name.ilike(
+                db_po.material_name
+            )
+        )
+        .first()
+    )
 
     if existing_inventory:
         existing_inventory.quantity += qty_received
+
     else:
         new_inv = models.Inventory(
             project_id=db_po.project_id,
             material_name=db_po.material_name,
+            category="Raw Materials",
             quantity=qty_received,
             unit="Bags",
             minimum_stock=10,
-            supplier=db_po.vendor.vendor_name if db_po.vendor else "Vendor"
+            supplier=(
+                db_po.vendor.vendor_name
+                if db_po.vendor
+                else "Vendor"
+            )
         )
+
         db.add(new_inv)
 
     db.commit()
@@ -1658,19 +1585,29 @@ def receive_material_delivery(db: Session, po_id: int, received_quantity: Option
         db,
         [],
         title=f"Delivery Received: {db_po.material_name}",
-        message=f"{qty_received} units of {db_po.material_name} received on site. Inventory stock updated!"
+        message=(
+            f"{qty_received} units of "
+            f"{db_po.material_name} received on site. "
+            f"Inventory stock updated."
+        )
     )
 
     return db_po
-
 
 # ======================================================
 # INVOICE CRUD
 # ======================================================
 
-def create_invoice(db: Session, invoice: schemas.InvoiceCreate):
-    import time
-    inv_no = invoice.invoice_no or f"INV-{int(time.time())}"
+def create_invoice(
+    db: Session,
+    invoice: schemas.InvoiceCreate
+):
+    import uuid
+
+    inv_no = (
+        invoice.invoice_no
+        or f"INV-{uuid.uuid4().hex[:8].upper()}"
+    )
 
     db_inv = models.Invoice(
         invoice_no=inv_no,
@@ -1681,6 +1618,7 @@ def create_invoice(db: Session, invoice: schemas.InvoiceCreate):
         invoice_date=invoice.invoice_date,
         payment_status="Pending"
     )
+
     db.add(db_inv)
     db.commit()
     db.refresh(db_inv)
@@ -1689,22 +1627,89 @@ def create_invoice(db: Session, invoice: schemas.InvoiceCreate):
         db,
         [],
         title=f"Invoice Uploaded: {inv_no}",
-        message=f"Vendor Invoice {inv_no} uploaded for Purchase Order #{invoice.purchase_order_id} (Amount: ${invoice.amount:,.2f})."
+        message=(
+            f"Vendor Invoice {inv_no} uploaded for "
+            f"Purchase Order #{invoice.purchase_order_id} "
+            f"(Amount: ₹{invoice.amount:,.2f})."
+        )
     )
 
     return db_inv
 
-def get_invoices(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Invoice).order_by(models.Invoice.id.desc()).offset(skip).limit(limit).all()
 
-def get_invoice(db: Session, invoice_id: int):
-    return db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+def get_invoices(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.Invoice)
+        .order_by(models.Invoice.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-def update_invoice_payment(db: Session, invoice_id: int, payment_status: str):
+
+def get_invoice(
+    db: Session,
+    invoice_id: int
+):
+    return (
+        db.query(models.Invoice)
+        .filter(models.Invoice.id == invoice_id)
+        .first()
+    )
+
+
+def update_invoice(
+    db: Session,
+    invoice_id: int,
+    invoice: schemas.InvoiceUpdate
+):
     db_inv = get_invoice(db, invoice_id)
+
     if not db_inv:
         return None
+
+    update_data = invoice.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_inv, key, value)
+
+    db.commit()
+    db.refresh(db_inv)
+
+    return db_inv
+
+
+def delete_invoice(
+    db: Session,
+    invoice_id: int
+):
+    db_inv = get_invoice(db, invoice_id)
+
+    if not db_inv:
+        return None
+
+    db.delete(db_inv)
+    db.commit()
+
+    return db_inv
+
+
+def update_invoice_payment(
+    db: Session,
+    invoice_id: int,
+    payment_status: str
+):
+    db_inv = get_invoice(db, invoice_id)
+
+    if not db_inv:
+        return None
+
     db_inv.payment_status = payment_status
+
     db.commit()
     db.refresh(db_inv)
 
@@ -1712,9 +1717,908 @@ def update_invoice_payment(db: Session, invoice_id: int, payment_status: str):
         db,
         [],
         title=f"Payment Status Updated: {db_inv.invoice_no}",
-        message=f"Invoice {db_inv.invoice_no} payment status updated to '{payment_status}'."
+        message=(
+            f"Invoice {db_inv.invoice_no} payment status "
+            f"updated to '{payment_status}'."
+        )
     )
 
     return db_inv
 
 
+
+
+
+# ======================================================
+# DOCUMENT CRUD
+# ======================================================
+
+def create_document(
+    db: Session,
+    document: schemas.DocumentCreate
+):
+    db_document = models.Document(
+        project_id=document.project_id,
+        uploaded_by=document.uploaded_by,
+        file_name=document.file_name,
+        file_type=document.file_type,
+        file_path=document.file_path,
+        description=document.description
+    )
+
+    db.add(db_document)
+    db.commit()
+    db.refresh(db_document)
+
+    return db_document
+
+
+def get_documents(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.Document)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_document(
+    db: Session,
+    document_id: int
+):
+    return (
+        db.query(models.Document)
+        .filter(models.Document.id == document_id)
+        .first()
+    )
+
+
+def update_document(
+    db: Session,
+    document_id: int,
+    document: schemas.DocumentUpdate
+):
+    db_doc = get_document(db, document_id)
+
+    if not db_doc:
+        return None
+
+    update_data = document.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_doc, key, value)
+
+    db.commit()
+    db.refresh(db_doc)
+
+    return db_doc
+
+
+def delete_document(db: Session, document_id: int):
+    db_doc = get_document(db, document_id)
+
+    if not db_doc:
+        return None
+
+    db.delete(db_doc)
+    db.commit()
+
+    return db_doc
+
+
+# ======================================================
+# ANALYTICS CRUD
+# ======================================================
+
+def create_analytics(
+    db: Session,
+    analytics: schemas.AnalyticsCreate
+):
+    db_analytics = models.Analytics(
+        project_id=analytics.project_id,
+        total_budget=analytics.total_budget,
+        total_expense=analytics.total_expense,
+        completed_milestones=analytics.completed_milestones,
+        total_milestones=analytics.total_milestones,
+        total_workers=analytics.total_workers,
+        total_inventory=analytics.total_inventory,
+        pending_procurements=analytics.pending_procurements
+    )
+
+    db.add(db_analytics)
+    db.commit()
+    db.refresh(db_analytics)
+
+    return db_analytics
+
+
+def get_analytics(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.Analytics)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_analytics_by_id(
+    db: Session,
+    analytics_id: int
+):
+    return (
+        db.query(models.Analytics)
+        .filter(models.Analytics.id == analytics_id)
+        .first()
+    )
+
+
+def get_project_analytics(
+    db: Session,
+    project_id: int
+):
+    return (
+        db.query(models.Analytics)
+        .filter(models.Analytics.project_id == project_id)
+        .all()
+    )
+
+
+def update_analytics(
+    db: Session,
+    analytics_id: int,
+    analytics: schemas.AnalyticsUpdate
+):
+    db_analytics = get_analytics_by_id(db, analytics_id)
+
+    if not db_analytics:
+        return None
+
+    update_data = analytics.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_analytics, key, value)
+
+    db.commit()
+    db.refresh(db_analytics)
+
+    return db_analytics
+
+
+def delete_analytics(
+    db: Session,
+    analytics_id: int
+):
+    db_analytics = get_analytics_by_id(db, analytics_id)
+
+    if not db_analytics:
+        return None
+
+    db.delete(db_analytics)
+    db.commit()
+
+    return db_analytics
+
+
+# ============================================================
+# EXPENSE CRUD
+# ============================================================
+
+def create_expense(db: Session, expense: schemas.ExpenseCreate):
+    db_expense = models.Expense(**expense.model_dump())
+
+    db.add(db_expense)
+    db.commit()
+    db.refresh(db_expense)
+
+    return db_expense
+
+
+def get_expenses(db: Session, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Expense)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_expense(db: Session, expense_id: int):
+    return (
+        db.query(models.Expense)
+        .filter(models.Expense.id == expense_id)
+        .first()
+    )
+
+
+def update_expense(
+    db: Session,
+    expense_id: int,
+    expense: schemas.ExpenseUpdate
+):
+    db_expense = get_expense(db, expense_id)
+
+    if not db_expense:
+        return None
+
+    for key, value in expense.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_expense, key, value)
+
+    db.commit()
+    db.refresh(db_expense)
+
+    return db_expense
+
+
+def delete_expense(db: Session, expense_id: int):
+    db_expense = get_expense(db, expense_id)
+
+    if not db_expense:
+        return None
+
+    db.delete(db_expense)
+    db.commit()
+
+    return db_expense
+
+
+# ============================================================
+# RESOURCE ALLOCATION CRUD
+# ============================================================
+
+def create_resource_allocation(
+    db: Session,
+    allocation: schemas.ResourceAllocationCreate
+):
+    db_allocation = models.ResourceAllocation(
+        **allocation.model_dump()
+    )
+
+    db.add(db_allocation)
+    db.commit()
+    db.refresh(db_allocation)
+
+    return db_allocation
+
+
+def get_resource_allocations(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.ResourceAllocation)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_resource_allocation(
+    db: Session,
+    allocation_id: int
+):
+    return (
+        db.query(models.ResourceAllocation)
+        .filter(
+            models.ResourceAllocation.id == allocation_id
+        )
+        .first()
+    )
+
+
+def update_resource_allocation(
+    db: Session,
+    allocation_id: int,
+    allocation: schemas.ResourceAllocationUpdate
+):
+    db_allocation = get_resource_allocation(
+        db,
+        allocation_id
+    )
+
+    if not db_allocation:
+        return None
+
+    for key, value in allocation.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_allocation, key, value)
+
+    db.commit()
+    db.refresh(db_allocation)
+
+    return db_allocation
+
+
+def delete_resource_allocation(
+    db: Session,
+    allocation_id: int
+):
+    db_allocation = get_resource_allocation(
+        db,
+        allocation_id
+    )
+
+    if not db_allocation:
+        return None
+
+    db.delete(db_allocation)
+    db.commit()
+
+    return db_allocation
+
+
+# ============================================================
+# RESOURCE MAINTENANCE CRUD
+# ============================================================
+
+def create_resource_maintenance(
+    db: Session,
+    maintenance: schemas.ResourceMaintenanceCreate
+):
+    db_maintenance = models.ResourceMaintenance(
+        **maintenance.model_dump()
+    )
+
+    db.add(db_maintenance)
+    db.commit()
+    db.refresh(db_maintenance)
+
+    return db_maintenance
+
+
+def get_resource_maintenances(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.ResourceMaintenance)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_resource_maintenance(
+    db: Session,
+    maintenance_id: int
+):
+    return (
+        db.query(models.ResourceMaintenance)
+        .filter(
+            models.ResourceMaintenance.id == maintenance_id
+        )
+        .first()
+    )
+
+
+def update_resource_maintenance(
+    db: Session,
+    maintenance_id: int,
+    maintenance: schemas.ResourceMaintenanceUpdate
+):
+    db_maintenance = get_resource_maintenance(
+        db,
+        maintenance_id
+    )
+
+    if not db_maintenance:
+        return None
+
+    for key, value in maintenance.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_maintenance, key, value)
+
+    db.commit()
+    db.refresh(db_maintenance)
+
+    return db_maintenance
+
+
+def delete_resource_maintenance(
+    db: Session,
+    maintenance_id: int
+):
+    db_maintenance = get_resource_maintenance(
+        db,
+        maintenance_id
+    )
+
+    if not db_maintenance:
+        return None
+
+    db.delete(db_maintenance)
+    db.commit()
+
+    return db_maintenance
+
+
+# ============================================================
+# SITE PROGRESS REPORT CRUD
+# ============================================================
+
+def create_site_progress_report(
+    db: Session,
+    report: schemas.SiteProgressReportCreate
+):
+    db_report = models.SiteProgressReport(
+        **report.model_dump()
+    )
+
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+
+    return db_report
+
+
+def get_site_progress_reports(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.SiteProgressReport)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_site_progress_report(
+    db: Session,
+    report_id: int
+):
+    return (
+        db.query(models.SiteProgressReport)
+        .filter(
+            models.SiteProgressReport.id == report_id
+        )
+        .first()
+    )
+
+
+def update_site_progress_report(
+    db: Session,
+    report_id: int,
+    report: schemas.SiteProgressReportUpdate
+):
+    db_report = get_site_progress_report(db, report_id)
+
+    if not db_report:
+        return None
+
+    for key, value in report.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_report, key, value)
+
+    db.commit()
+    db.refresh(db_report)
+
+    return db_report
+
+
+def delete_site_progress_report(
+    db: Session,
+    report_id: int
+):
+    db_report = get_site_progress_report(db, report_id)
+
+    if not db_report:
+        return None
+
+    db.delete(db_report)
+    db.commit()
+
+    return db_report
+
+
+# ============================================================
+# SITE ACTIVITY LOG CRUD
+# ============================================================
+
+def create_site_activity_log(
+    db: Session,
+    activity: schemas.SiteActivityLogCreate
+):
+    db_activity = models.SiteActivityLog(
+        **activity.model_dump()
+    )
+
+    db.add(db_activity)
+    db.commit()
+    db.refresh(db_activity)
+
+    return db_activity
+
+
+def get_site_activity_logs(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.SiteActivityLog)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_site_activity_log(
+    db: Session,
+    activity_id: int
+):
+    return (
+        db.query(models.SiteActivityLog)
+        .filter(
+            models.SiteActivityLog.id == activity_id
+        )
+        .first()
+    )
+
+
+def update_site_activity_log(
+    db: Session,
+    activity_id: int,
+    activity: schemas.SiteActivityLogUpdate
+):
+    db_activity = get_site_activity_log(
+        db,
+        activity_id
+    )
+
+    if not db_activity:
+        return None
+
+    for key, value in activity.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_activity, key, value)
+
+    db.commit()
+    db.refresh(db_activity)
+
+    return db_activity
+
+
+def delete_site_activity_log(
+    db: Session,
+    activity_id: int
+):
+    db_activity = get_site_activity_log(
+        db,
+        activity_id
+    )
+
+    if not db_activity:
+        return None
+
+    db.delete(db_activity)
+    db.commit()
+
+    return db_activity
+
+
+# ============================================================
+# WORKER SHIFT CRUD
+# ============================================================
+
+def create_worker_shift(
+    db: Session,
+    shift: schemas.WorkerShiftCreate
+):
+    db_shift = models.WorkerShift(
+        **shift.model_dump()
+    )
+
+    db.add(db_shift)
+    db.commit()
+    db.refresh(db_shift)
+
+    return db_shift
+
+
+def get_worker_shifts(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.WorkerShift)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_worker_shift(
+    db: Session,
+    shift_id: int
+):
+    return (
+        db.query(models.WorkerShift)
+        .filter(models.WorkerShift.id == shift_id)
+        .first()
+    )
+
+
+def update_worker_shift(
+    db: Session,
+    shift_id: int,
+    shift: schemas.WorkerShiftUpdate
+):
+    db_shift = get_worker_shift(db, shift_id)
+
+    if not db_shift:
+        return None
+
+    for key, value in shift.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_shift, key, value)
+
+    db.commit()
+    db.refresh(db_shift)
+
+    return db_shift
+
+
+def delete_worker_shift(
+    db: Session,
+    shift_id: int
+):
+    db_shift = get_worker_shift(db, shift_id)
+
+    if not db_shift:
+        return None
+
+    db.delete(db_shift)
+    db.commit()
+
+    return db_shift
+
+
+# ============================================================
+# PAYROLL CRUD
+# ============================================================
+
+def create_payroll_record(
+    db: Session,
+    payroll: schemas.PayrollRecordCreate
+):
+    db_payroll = models.PayrollRecord(
+        **payroll.model_dump()
+    )
+
+    db.add(db_payroll)
+    db.commit()
+    db.refresh(db_payroll)
+
+    return db_payroll
+
+
+def get_payroll_records(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.PayrollRecord)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_payroll_record(
+    db: Session,
+    payroll_id: int
+):
+    return (
+        db.query(models.PayrollRecord)
+        .filter(models.PayrollRecord.id == payroll_id)
+        .first()
+    )
+
+
+def update_payroll_record(
+    db: Session,
+    payroll_id: int,
+    payroll: schemas.PayrollRecordUpdate
+):
+    db_payroll = get_payroll_record(db, payroll_id)
+
+    if not db_payroll:
+        return None
+
+    for key, value in payroll.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_payroll, key, value)
+
+    db.commit()
+    db.refresh(db_payroll)
+
+    return db_payroll
+
+
+def delete_payroll_record(
+    db: Session,
+    payroll_id: int
+):
+    db_payroll = get_payroll_record(db, payroll_id)
+
+    if not db_payroll:
+        return None
+
+    db.delete(db_payroll)
+    db.commit()
+
+    return db_payroll
+
+
+# ============================================================
+# MATERIAL ALLOCATION CRUD
+# ============================================================
+
+def create_material_allocation(
+    db: Session,
+    allocation: schemas.MaterialAllocationCreate
+):
+    db_allocation = models.MaterialAllocation(
+        **allocation.model_dump()
+    )
+
+    db.add(db_allocation)
+    db.commit()
+    db.refresh(db_allocation)
+
+    return db_allocation
+
+
+def get_material_allocations(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(models.MaterialAllocation)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_material_allocation(
+    db: Session,
+    allocation_id: int
+):
+    return (
+        db.query(models.MaterialAllocation)
+        .filter(
+            models.MaterialAllocation.id == allocation_id
+        )
+        .first()
+    )
+
+
+def update_material_allocation(
+    db: Session,
+    allocation_id: int,
+    allocation: schemas.MaterialAllocationUpdate
+):
+    db_allocation = get_material_allocation(
+        db,
+        allocation_id
+    )
+
+    if not db_allocation:
+        return None
+
+    for key, value in allocation.model_dump(
+        exclude_unset=True
+    ).items():
+        setattr(db_allocation, key, value)
+
+    db.commit()
+    db.refresh(db_allocation)
+
+    return db_allocation
+
+
+def delete_material_allocation(
+    db: Session,
+    allocation_id: int
+):
+    db_allocation = get_material_allocation(
+        db,
+        allocation_id
+    )
+
+    if not db_allocation:
+        return None
+
+    db.delete(db_allocation)
+    db.commit()
+
+    return db_allocation
+
+
+
+
+
+# ==========================================================
+# PASSWORD RESET
+# ==========================================================
+
+
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def create_password_reset_token(
+    db: Session,
+    user_id: int,
+    token: str,
+    expires_at: datetime
+):
+    token_hash = hash_reset_token(token)
+
+    db_token = models.PasswordResetToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+        used=False
+    )
+
+    db.add(db_token)
+    db.commit()
+    db.refresh(db_token)
+
+    return db_token
+
+
+def get_password_reset_token(
+    db: Session,
+    token: str
+):
+    token_hash = hash_reset_token(token)
+
+    return (
+        db.query(models.PasswordResetToken)
+        .filter(
+            models.PasswordResetToken.token_hash == token_hash,
+            models.PasswordResetToken.used == False
+        )
+        .first()
+    )
+
+
+def mark_password_reset_token_used(
+    db: Session,
+    reset_token: models.PasswordResetToken
+):
+    reset_token.used = True
+
+    db.commit()
+    db.refresh(reset_token)
+
+    return reset_token
