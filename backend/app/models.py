@@ -145,6 +145,8 @@ class Project(Base):
         back_populates="project"
     )
 
+
+
 class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
 
@@ -251,7 +253,7 @@ class Report(Base):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     generated_by = Column(Integer, ForeignKey("users.id"), index=True)
-    report_type = Column(Enum(ReportTypeEnum), nullable=False,index=True)
+    report_type = Column(Enum(ReportTypeEnum), nullable=False, index=True)
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
 
