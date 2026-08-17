@@ -32,6 +32,7 @@ import { PurchaseOrdersComponent } from './features/purchase-orders/purchase-ord
 import { DeliveriesComponent } from './features/deliveries/deliveries.component';
 import { InvoicesComponent } from './features/invoices/invoices.component';
 import { PaymentsComponent } from './features/payments/payments.component';
+import { BudgetCostManagementComponent } from './features/budgets/budget-cost-management.component';
 
 import { AuthGuard } from './core/guards/auth.guard';
 
@@ -176,6 +177,11 @@ export const routes: Routes = [
         path: 'payments', 
         component: PaymentsComponent, 
         data: { roles: ['Admin', 'Finance'] } 
+      },
+      { 
+        path: 'budgets', 
+        component: BudgetCostManagementComponent, 
+        data: { roles: ['Admin', 'Project Manager', 'Finance'] } 
       },
 
       // Default fallback redirect inside authenticated view
