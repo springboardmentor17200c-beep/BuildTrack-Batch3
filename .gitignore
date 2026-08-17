@@ -1,8 +1,71 @@
-# Root level gitignore for BuildTrack repository
+# ==============================
+# FRONTEND - Angular
+# ==============================
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 frontend/.vscode/
+
+# ==============================
+# BACKEND - Python
+# ==============================
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+
+# Python cache
+*.py[cod]
+*$py.class
+
+# ==============================
+# ENVIRONMENT / SECRETS
+# ==============================
+.env
+.env.*
+!.env.example
+
+# ==============================
+# IDE
+# ==============================
 .vscode/
+.idea/
+
+# ==============================
+# LOGS / OS
+# ==============================
 *.log
 .DS_Store
+Thumbs.db
+
+# ==============================
+# PYTHON TEST / CACHE
+# ==============================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ==============================
+# DATABASE LOCAL FILES
+# ==============================
+*.db
+*.sqlite
+*.sqlite3
+
+
+
+
+
+# Python virtual environment
+venv/
+backend/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
