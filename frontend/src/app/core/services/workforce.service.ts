@@ -22,10 +22,12 @@ interface ApiAttendance {
   check_out?: string | null;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({ providedIn: 'root' })
 export class WorkforceService {
-  private readonly workersUrl = 'http://127.0.0.1:8000/workers';
-  private readonly attendanceUrl = 'http://127.0.0.1:8000/attendance';
+  private readonly workersUrl = `${environment.apiUrl}/workers`;
+  private readonly attendanceUrl = `${environment.apiUrl}/attendance`;
 
   // Shift scheduling remains local until the shift API is implemented.
   private schedules: ShiftSchedule[] = [];

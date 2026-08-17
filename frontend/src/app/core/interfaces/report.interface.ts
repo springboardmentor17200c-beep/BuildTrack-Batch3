@@ -4,7 +4,9 @@ export interface Report {
   generatedBy: number;
   reportType: 'Financial Audit Report' | 'Material Utilization Report' | 'Workforce Cost Summary' | 'Project Milestone Summary' | string;
   reportUrl: string;
+  excelUrl?: string;
   createdAt: string;
   projectName?: string;
   generatedByName?: string;
 }
+

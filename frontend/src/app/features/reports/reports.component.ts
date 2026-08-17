@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { ReportService } from '../../core/services/report.service';
+import { environment } from '../../../environments/environment';
 import { ProjectService } from '../../core/services/project.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -19,7 +20,7 @@ import { Project } from '../../core/interfaces/project.interface';
       <!-- Title -->
       <div class="mb-4">
         <h1 class="h2 fw-bold mb-1 text-slate-800">Site Quality & Inspection Reports</h1>
-        <p class="text-muted mb-0">Generate digital site progress summaries, inspector quality reports, and download PDF sheets.</p>
+        <p class="text-muted mb-0">Generate digital site progress summaries, inspector quality reports, and export PDF sheets & Excel spreadsheets.</p>
       </div>
 
       <!-- Main Grid -->
@@ -27,7 +28,7 @@ import { Project } from '../../core/interfaces/project.interface';
         <!-- Requisition / Generator Form -->
         <div class="col-12 col-lg-4" *ngIf="canManage">
           <div class="bt-card">
-            <h5 class="fw-bold mb-3 text-slate-800">Generate Report PDF</h5>
+            <h5 class="fw-bold mb-3 text-slate-800">Generate PDF & Excel Reports</h5>
             <form [formGroup]="reportForm" (ngSubmit)="onSubmit()" class="d-flex flex-column gap-3">
               <div>
                 <label class="bt-form-label">Project Association</label>
@@ -43,19 +44,25 @@ import { Project } from '../../core/interfaces/project.interface';
               <div>
                 <label class="bt-form-label">Report Type</label>
                 <select class="form-select bt-form-control" formControlName="reportType">
+                  <option value="Resource Utilization Report">Resource Utilization Report</option>
+                  <option value="Budget & Financial Report">Budget & Financial Report</option>
+                  <option value="Workforce & Payroll Report">Workforce & Payroll Report</option>
+                  <option value="Procurement Summary Report">Procurement Summary Report</option>
+                  <option value="Project Progress Report">Project Progress Report</option>
                   <option value="Daily Site Log">Daily Site Progress Log</option>
-                  <option value="Weekly Summary">Weekly Executive Outlay Summary</option>
                   <option value="Material Quality Audit">Material Quality Audit Log</option>
                   <option value="Safety Inspection Sheet">Safety Inspection compliance sheet</option>
                 </select>
+
               </div>
 
               <button type="submit" class="btn btn-bt-primary w-100 py-3 mt-2 d-flex align-items-center justify-content-center gap-2" [disabled]="loading">
-                <span *ngIf="!loading">Compile & Generate PDF</span>
+                <span *ngIf="!loading">Compile PDF & Excel Reports</span>
                 <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status"></span>
-                <mat-icon *ngIf="!loading">picture_as_pdf</mat-icon>
+                <mat-icon *ngIf="!loading">description</mat-icon>
               </button>
             </form>
+
           </div>
         </div>
 
@@ -100,16 +107,21 @@ import { Project } from '../../core/interfaces/project.interface';
                       </span>
                     </td>
                     <td class="text-end">
-                      <div class="d-flex justify-content-end gap-2">
-                        <a [href]="'http://127.0.0.1:8000' + report.reportUrl" target="_blank" class="btn btn-xs btn-outline-primary py-1 px-2 text-xxs d-flex align-items-center gap-1">
-                          <mat-icon style="font-size: 14px; width: 14px; height: 14px;">download</mat-icon>
+                      <div class="d-flex justify-content-end gap-1">
+                        <a [href]="report.reportUrl.startsWith('http') ? report.reportUrl : apiUrl + report.reportUrl" target="_blank" class="btn btn-xs btn-outline-danger py-1 px-2 text-xxs d-flex align-items-center gap-1">
+                          <mat-icon style="font-size: 14px; width: 14px; height: 14px;">picture_as_pdf</mat-icon>
                           <span>PDF</span>
+                        </a>
+                        <a [href]="(report.excelUrl && report.excelUrl.startsWith('http')) ? report.excelUrl : apiUrl + (report.excelUrl || report.reportUrl.replace('.pdf', '.csv'))" target="_blank" class="btn btn-xs btn-outline-success py-1 px-2 text-xxs d-flex align-items-center gap-1">
+                          <mat-icon style="font-size: 14px; width: 14px; height: 14px;">table_chart</mat-icon>
+                          <span>Excel</span>
                         </a>
                         <button class="btn btn-link text-danger p-1" (click)="deleteReport(report.id)" *ngIf="isAdmin">
                           <mat-icon style="font-size: 18px; width: 18px; height: 18px;">delete</mat-icon>
                         </button>
                       </div>
                     </td>
+
                   </tr>
                   <tr *ngIf="filteredReports.length === 0">
                     <td colspan="6" class="text-center py-4 text-muted">No quality reports logged.</td>
@@ -132,6 +144,7 @@ import { Project } from '../../core/interfaces/project.interface';
   `]
 })
 export class ReportsComponent implements OnInit {
+  apiUrl = environment.apiUrl;
   reports: Report[] = [];
   filteredReports: Report[] = [];
   projects: Project[] = [];
@@ -166,9 +179,10 @@ export class ReportsComponent implements OnInit {
   initForm(): void {
     this.reportForm = this.fb.group({
       projectId: ['', Validators.required],
-      reportType: ['Daily Site Log', Validators.required]
+      reportType: ['Project Progress Report', Validators.required]
     });
   }
+
 
   get f() { return this.reportForm.controls; }
 

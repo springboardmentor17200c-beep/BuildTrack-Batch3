@@ -23,7 +23,9 @@ from app.routes import (
     vendors,
     material_requests,
     purchase_orders,
-    invoices
+    invoices,
+    budget,
+    expenses
 )
 
 Base.metadata.create_all(bind=engine)
@@ -35,11 +37,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Ensure static/reports directory exists and mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -68,3 +71,6 @@ app.include_router(vendors.router)
 app.include_router(material_requests.router)
 app.include_router(purchase_orders.router)
 app.include_router(invoices.router)
+app.include_router(budget.router)
+app.include_router(expenses.router)
+

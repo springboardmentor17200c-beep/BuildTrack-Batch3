@@ -23,6 +23,8 @@ def generate_pdf_report(db: Session, project_id: int, report_type: str, generate
     resources = db.query(models.Resource).filter(models.Resource.project_id == project_id).all()
     procurements = db.query(models.Procurement).filter(models.Procurement.project_id == project_id).all()
     milestones = db.query(models.ProjectMilestone).filter(models.ProjectMilestone.project_id == project_id).all()
+    workers = db.query(models.Worker).filter(models.Worker.project_id == project_id).all()
+    attendance_records = db.query(models.Attendance).filter(models.Attendance.project_id == project_id).all()
 
     # 2. Ensure output directory exists
     reports_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "reports")
@@ -104,85 +106,154 @@ def generate_pdf_report(db: Session, project_id: int, report_type: str, generate
 
     # Executive Summary Section
     elements.append(Paragraph("Executive Summary", section_heading))
+    total_procurement_cost = sum(p.total_cost for p in procurements)
+    total_payroll_estimate = sum(w.salary for w in workers)
     summary_text = (
-        f"This official analytical report outlines the operational status, financial budget allocation, inventory stocks, "
-        f"and heavy equipment utilization for <b>{project_name}</b>. "
-        f"The total project contract value is budgeted at <b>${budget:,.2f}</b> under current status <b>{status}</b>."
+        f"This official analytical report ({report_type}) details operational logistics, financial budget allocation, inventory stocks, "
+        f"workforce payroll, and procurement status for <b>{project_name}</b>. "
+        f"The total contract budget is <b>${budget:,.2f}</b> under site status <b>{status}</b>."
     )
     elements.append(Paragraph(summary_text, body_style))
     elements.append(Spacer(1, 12))
 
-    # Key Performance Metrics Table
-    elements.append(Paragraph("Project Financial Overview", section_heading))
-    metrics_data = [
-        ["Metric Description", "Amount / Status"],
-        ["Total Allocated Contract Budget", f"${budget:,.2f}"],
-        ["Material Procurement Expenditures", f"${sum(p.total_cost for p in procurements):,.2f}"],
-        ["Active Inventory Line Items", str(len(inventory_items))],
-        ["Deployed Machinery Assets", str(len(resources))],
-        ["Milestones Recorded", str(len(milestones))]
-    ]
-    t_metrics = Table(metrics_data, colWidths=[300, 240])
-    t_metrics.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f172a')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc'))
-    ]))
-    elements.append(t_metrics)
-    elements.append(Spacer(1, 15))
+    # 1. Resource Utilization Report Section
+    if "Resource" in report_type or "Progress" in report_type or "Daily" in report_type or True:
+        if inventory_items:
+            elements.append(Paragraph("Material Inventory Stock & Utilization", section_heading))
+            inv_data = [["Material Name", "Category", "Current Stock", "Unit", "Min Stock", "Supplier"]]
+            for item in inventory_items:
+                inv_data.append([
+                    getattr(item, "material_name", "Material"),
+                    getattr(item, "category", "Cement"),
+                    str(getattr(item, "quantity", 0)),
+                    getattr(item, "unit", "Units"),
+                    str(getattr(item, "minimum_stock", 10)),
+                    getattr(item, "supplier", "Supplier")
+                ])
+            t_inv = Table(inv_data, colWidths=[130, 90, 80, 60, 70, 110])
+            t_inv.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ff7a00')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
+            ]))
+            elements.append(t_inv)
+            elements.append(Spacer(1, 15))
 
-    # Inventory Stock Breakdown Table
-    if inventory_items:
-        elements.append(Paragraph("Material Inventory Stock Breakdown", section_heading))
-        inv_data = [["Material Name", "Category", "Current Stock", "Unit", "Supplier"]]
-        for item in inventory_items:
-            inv_data.append([
-                item.material_name,
-                item.category or "Cement",
-                str(item.quantity),
-                item.unit or "Units",
-                item.supplier or "Supplier"
+        if resources:
+            elements.append(Paragraph("Heavy Machinery & Equipment Utilization", section_heading))
+            res_data = [["Equipment Name", "Category", "Quantity", "Status"]]
+            for res in resources:
+                res_data.append([
+                    getattr(res, "name", getattr(res, "resource_name", "Equipment")),
+                    getattr(res, "category", "Machinery"),
+                    str(getattr(res, "quantity", 1)),
+                    getattr(res, "status", "Available")
+                ])
+            t_res = Table(res_data, colWidths=[180, 120, 80, 160])
+            t_res.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0'))
+            ]))
+            elements.append(t_res)
+            elements.append(Spacer(1, 15))
+
+    # 2. Budget Report Section
+    if "Budget" in report_type or "Progress" in report_type or "Weekly" in report_type:
+        elements.append(Paragraph("Financial Budget Breakdown & Expenditures", section_heading))
+        metrics_data = [["Financial Metric", "Allocated Value / Spent ($)"]]
+        metrics_data.append(["Total Contract Allocated Budget", f"${budget:,.2f}"])
+        metrics_data.append(["Material Procurement Outlays", f"${total_procurement_cost:,.2f}"])
+        metrics_data.append(["Estimated Workforce Payroll Cost", f"${total_payroll_estimate:,.2f}"])
+        metrics_data.append(["Net Remaining Contract Balance", f"${max(budget - total_procurement_cost - total_payroll_estimate, 0):,.2f}"])
+        t_metrics = Table(metrics_data, colWidths=[300, 240])
+        t_metrics.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f172a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc'))
+        ]))
+        elements.append(t_metrics)
+        elements.append(Spacer(1, 15))
+
+    # 3. Workforce Report Section
+    if "Workforce" in report_type or "Progress" in report_type:
+        if workers:
+            elements.append(Paragraph("Workforce Roster & Payroll Breakdown", section_heading))
+            w_data = [["Worker Name", "Designation", "Phone Contact", "Salary / Wage ($)"]]
+            for w in workers:
+                w_data.append([
+                    getattr(w, "name", "Worker"),
+                    getattr(w, "designation", "Staff"),
+                    getattr(w, "phone", "N/A") or "N/A",
+                    f"${getattr(w, 'salary', 0):,.2f}"
+                ])
+            t_w = Table(w_data, colWidths=[160, 140, 120, 120])
+            t_w.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8b5cf6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
+            ]))
+            elements.append(t_w)
+            elements.append(Spacer(1, 15))
+
+    # 4. Procurement Report Section
+    if "Procurement" in report_type or "Progress" in report_type:
+        if procurements:
+            elements.append(Paragraph("Procurement Orders & Vendor Fulfillment Ledger", section_heading))
+            p_data = [["Material Item", "Supplier", "Quantity", "Total Cost ($)", "Payment Status"]]
+            for p in procurements:
+                p_data.append([
+                    getattr(p, "material_name", "Material"),
+                    getattr(p, "supplier", "Vendor"),
+                    str(getattr(p, "quantity", 0)),
+                    f"${getattr(p, 'total_cost', 0):,.2f}",
+                    getattr(p, "payment_status", "Pending")
+                ])
+            t_p = Table(p_data, colWidths=[140, 130, 70, 100, 100])
+            t_p.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#06b6d4')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
+            ]))
+            elements.append(t_p)
+            elements.append(Spacer(1, 15))
+
+    # Milestones & Progress Schedule Section
+    if milestones:
+        elements.append(Paragraph("Project Construction Milestones & Progress Schedule", section_heading))
+        ms_data = [["Milestone Phase", "Target Due Date", "Phase Status"]]
+        for ms in milestones:
+            ms_data.append([
+                getattr(ms, "name", "Construction Phase"),
+                str(getattr(ms, "due_date", "On Schedule")),
+                getattr(ms, "status", "In Progress")
             ])
-        t_inv = Table(inv_data, colWidths=[150, 100, 80, 70, 140])
-        t_inv.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ff7a00')),
+        t_ms = Table(ms_data, colWidths=[240, 150, 150])
+        t_ms.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
         ]))
-        elements.append(t_inv)
-        elements.append(Spacer(1, 15))
-
-    # Machinery & Equipment Allocation
-    if resources:
-        elements.append(Paragraph("Heavy Machinery & Equipment Deployment", section_heading))
-        res_data = [["Equipment Name", "Category", "Quantity", "Operational Status"]]
-        for res in resources:
-            res_data.append([
-                res.resource_name,
-                res.category or "Machinery",
-                str(res.quantity),
-                res.status or "Available"
-            ])
-        t_res = Table(res_data, colWidths=[180, 120, 80, 160])
-        t_res.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0'))
-        ]))
-        elements.append(t_res)
+        elements.append(t_ms)
         elements.append(Spacer(1, 15))
 
     # Footer Disclaimer

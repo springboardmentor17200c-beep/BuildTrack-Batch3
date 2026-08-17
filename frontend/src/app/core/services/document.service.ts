@@ -17,11 +17,13 @@ interface ApiDocument {
   created_at?: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class DocumentService {
-  private apiUrl = 'http://127.0.0.1:8000/documents';
+  private apiUrl = `${environment.apiUrl}/documents`;
 
   private documentsSubject = new BehaviorSubject<DocumentItem[]>([]);
   documents$ = this.documentsSubject.asObservable();

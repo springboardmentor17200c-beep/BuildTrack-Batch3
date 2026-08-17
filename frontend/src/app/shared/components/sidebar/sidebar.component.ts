@@ -213,7 +213,8 @@ export class SidebarComponent implements OnInit {
       purchaseOrders: { label: 'Purchase Orders', route: '/purchase-orders', icon: 'shopping_bag' },
       deliveries: { label: 'Deliveries', route: '/deliveries', icon: 'local_shipping' },
       invoices: { label: 'Invoices', route: '/invoices', icon: 'receipt' },
-      payments: { label: 'Payments', route: '/payments', icon: 'payments' }
+      payments: { label: 'Payments', route: '/payments', icon: 'payments' },
+      budgets: { label: 'Budget & Costs', route: '/budgets', icon: 'account_balance_wallet' }
     };
 
     switch (role) {
@@ -229,6 +230,7 @@ export class SidebarComponent implements OnInit {
           allItems['deliveries'],
           allItems['invoices'],
           allItems['payments'],
+          allItems['budgets'],
           allItems['attendance'],
           allItems['notifications'],
           allItems['reports'],
@@ -244,6 +246,7 @@ export class SidebarComponent implements OnInit {
           allItems['vendors'],
           allItems['purchaseOrders'],
           allItems['invoices'],
+          allItems['budgets'],
           allItems['attendance'],
           allItems['notifications'],
           allItems['reports'],
@@ -289,6 +292,7 @@ export class SidebarComponent implements OnInit {
         return [
           allItems['invoices'],
           allItems['payments'],
+          allItems['budgets'],
           allItems['reports'],
           allItems['notifications']
         ];

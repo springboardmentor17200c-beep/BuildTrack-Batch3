@@ -16,11 +16,13 @@ interface ApiVendor {
   is_active?: boolean;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({
   providedIn: 'root'
 })
 export class VendorService {
-  private apiUrl = 'http://127.0.0.1:8000/vendors';
+  private apiUrl = `${environment.apiUrl}/vendors`;
 
   constructor(private http: HttpClient) {}
 

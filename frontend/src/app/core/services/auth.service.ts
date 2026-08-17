@@ -3,6 +3,8 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
+import { environment } from '../../../environments/environment';
+
 export interface User {
   id?: number;
   name: string;
@@ -21,7 +23,7 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://127.0.0.1:8000/users';
+  private apiUrl = `${environment.apiUrl}/users`;
 
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser$: Observable<User | null>;

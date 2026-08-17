@@ -36,9 +36,11 @@ interface ProjectFormValue {
   location: string;
 }
 
+import { environment } from '../../../environments/environment';
+
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
-  private readonly apiUrl = 'http://127.0.0.1:8000';
+  private readonly apiUrl = environment.apiUrl;
 
   constructor(
     private http: HttpClient,

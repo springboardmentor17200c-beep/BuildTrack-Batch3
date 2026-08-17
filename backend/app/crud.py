@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from app import models, schemas
@@ -2546,79 +2547,9 @@ def delete_material_allocation(
 ):
     db_allocation = get_material_allocation(
         db,
-        allocation_id
+        [],
+        title=f"Payment Status Updated: {db_inv.invoice_no}",
+        message=f"Invoice {db_inv.invoice_no} payment status updated to '{payment_status}'."
     )
 
-    if not db_allocation:
-        return None
-
-    db.delete(db_allocation)
-    db.commit()
-
-    return db_allocation
-
-
-
-
-
-# ==========================================================
-# PASSWORD RESET
-# ==========================================================
-
-
-
-
-def hash_reset_token(token: str) -> str:
-    return hashlib.sha256(
-        token.encode("utf-8")
-    ).hexdigest()
-
-
-def create_password_reset_token(
-    db: Session,
-    user_id: int,
-    token: str,
-    expires_at: datetime
-):
-    token_hash = hash_reset_token(token)
-
-    db_token = models.PasswordResetToken(
-        user_id=user_id,
-        token_hash=token_hash,
-        expires_at=expires_at,
-        used=False
-    )
-
-    db.add(db_token)
-    db.commit()
-    db.refresh(db_token)
-
-    return db_token
-
-
-def get_password_reset_token(
-    db: Session,
-    token: str
-):
-    token_hash = hash_reset_token(token)
-
-    return (
-        db.query(models.PasswordResetToken)
-        .filter(
-            models.PasswordResetToken.token_hash == token_hash,
-            models.PasswordResetToken.used == False
-        )
-        .first()
-    )
-
-
-def mark_password_reset_token_used(
-    db: Session,
-    reset_token: models.PasswordResetToken
-):
-    reset_token.used = True
-
-    db.commit()
-    db.refresh(reset_token)
-
-    return reset_token
+    return db_inv

@@ -1,6 +1,3 @@
-from typing import Optional
-
-from pydantic import BaseModel, EmailStr
 from sqlalchemy import (
     Column,
     Integer,
@@ -16,7 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum as PyEnum
 
 
@@ -152,11 +149,17 @@ class ProjectMilestone(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    milestone_name = Column(String(150), nullable=False)
+    name = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     due_date = Column(Date, nullable=False)
     completed_date = Column(Date, nullable=True)
     status = Column(String(50), default="Pending")
+
+    @property
+    def name(self):
+        return self.milestone_name
+
+
 
     project = relationship("Project", back_populates="milestones")
 
@@ -165,11 +168,16 @@ class Resource(Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
-    resource_name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False)
     category = Column(String(50), nullable=False)
     quantity = Column(Integer, nullable=False)
-    unit = Column(String(20), nullable=False, default="Units")
     status = Column(String(50), default="Available")
+
+    @property
+    def name(self):
+        return self.resource_name
+
+
 
     project = relationship("Project", back_populates="resources")
 
@@ -253,7 +261,7 @@ class Report(Base):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), index=True)
     generated_by = Column(Integer, ForeignKey("users.id"), index=True)
-    report_type = Column(Enum(ReportTypeEnum), nullable=False, index=True)
+    report_type = Column(Enum(ReportTypeEnum), nullable=False)
     report_url = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -365,6 +373,24 @@ class Invoice(Base):
 )
     vendor = relationship("Vendor")
     purchase_order = relationship("PurchaseOrder")
+
+
+class BudgetPlan(Base):
+    __tablename__ = "budget_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True, unique=True)
+    total_budget = Column(Float, nullable=False, default=0.0)
+    labor_limit = Column(Float, nullable=False, default=0.0)
+    material_limit = Column(Float, nullable=False, default=0.0)
+    equipment_limit = Column(Float, nullable=False, default=0.0)
+    transport_limit = Column(Float, nullable=False, default=0.0)
+    maintenance_limit = Column(Float, nullable=False, default=0.0)
+    admin_limit = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project")
+
 
 
 class Analytics(Base):
@@ -518,6 +544,7 @@ class Expense(Base):
 
     project = relationship("Project")
     recorder = relationship("User")
+    vendor = relationship("Vendor")
 
 
 class ResourceAllocation(Base):

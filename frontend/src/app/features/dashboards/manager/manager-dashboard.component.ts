@@ -10,6 +10,8 @@ import { InventoryService } from '../../../core/services/inventory.service';
 import { PurchaseOrderService } from '../../../core/services/purchase-order.service';
 import { Material } from '../../../core/interfaces/inventory.interface';
 import { PurchaseOrderRecord } from '../../../core/interfaces/purchase-order.interface';
+import { InvoiceService } from '../../../core/services/invoice.service';
+import { InvoiceRecord } from '../../../core/interfaces/invoice.interface';
 
 
 
@@ -332,13 +334,15 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
   projects: ProjectSummary[] = [];
   inventoryItems: Material[] = [];
   recentPos: PurchaseOrderRecord[] = [];
+  invoices: InvoiceRecord[] = [];
 
   constructor(
     private projectService: ProjectService,
     private materialRequestService: MaterialRequestService,
     private workforceService: WorkforceService,
     private inventoryService: InventoryService,
-    private poService: PurchaseOrderService
+    private poService: PurchaseOrderService,
+    private invoiceService: InvoiceService
   ) {}
 
   ngOnInit(): void {
@@ -395,6 +399,12 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     this.poService.getPurchaseOrders().subscribe(pos => {
       this.recentPos = pos.slice(0, 5); // Display top 5 recent POs
     });
+
+    // Load real invoices
+    this.invoiceService.getInvoices().subscribe(list => {
+      this.invoices = list;
+      this.drawChart();
+    });
   }
 
   getUtilizationPercentage(quantity: string | number, minStock?: number): number {
@@ -420,6 +430,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
 
 
   drawChart(): void {
+    if (!this.budgetCanvas) return;
     const canvas = this.budgetCanvas.nativeElement;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -433,6 +444,19 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     const width = rect.width;
     const height = rect.height;
 
+    ctx.clearRect(0, 0, width, height);
+
+    if (this.projects.length === 0) {
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px Outfit';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('No Outlay or Progress Metrics Available', width / 2, height / 2);
+      return;
+    }
+
     // Chart Configuration
     const paddingLeft = 40;
     const paddingRight = 20;
@@ -442,13 +466,27 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
 
-    // Data (Jan to Jun)
+    // We will group real invoice total amounts by month (YTD Jan to Jun)
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const budgetSpent = [12, 18, 30, 48, 62, 72]; // In 10k $
-    const completionProgress = [10, 20, 35, 45, 55, 62]; // In %
+    const budgetSpent = [0, 0, 0, 0, 0, 0];
+    
+    // Group invoices by date month
+    this.invoices.forEach(inv => {
+      if (!inv.invoiceDate) return;
+      const mVal = new Date(inv.invoiceDate).getMonth(); // 0 to 11
+      if (mVal >= 0 && mVal <= 5) {
+        budgetSpent[mVal] += (inv.amount + inv.gst) / 10000; // In 10k $ units
+      }
+    });
 
-    // Clear Canvas
-    ctx.clearRect(0, 0, width, height);
+    // Milestone completion progress curve by month (calculated dynamically from active projects)
+    const completionProgress = [0, 0, 0, 0, 0, 0];
+    if (this.projects.length > 0) {
+      const avgProgress = this.projects.reduce((sum, p) => sum + (p.progress || 0), 0) / this.projects.length;
+      for (let i = 0; i < months.length; i++) {
+        completionProgress[i] = Math.round((avgProgress / months.length) * (i + 1));
+      }
+    }
 
     // Draw Grid Lines (Horizontal)
     ctx.strokeStyle = '#e2e8f0';
@@ -482,8 +520,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     ctx.beginPath();
     budgetSpent.forEach((val, i) => {
       const x = paddingLeft + i * xStep;
-      // Value goes up to 100 max
-      const y = paddingTop + chartHeight * (1 - val / 100);
+      const y = paddingTop + chartHeight * (1 - Math.min(val, 100) / 100);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
@@ -493,7 +530,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     ctx.fillStyle = '#ff7a00';
     budgetSpent.forEach((val, i) => {
       const x = paddingLeft + i * xStep;
-      const y = paddingTop + chartHeight * (1 - val / 100);
+      const y = paddingTop + chartHeight * (1 - Math.min(val, 100) / 100);
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -505,7 +542,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     ctx.beginPath();
     completionProgress.forEach((val, i) => {
       const x = paddingLeft + i * xStep;
-      const y = paddingTop + chartHeight * (1 - val / 100);
+      const y = paddingTop + chartHeight * (1 - Math.min(val, 100) / 100);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
@@ -515,7 +552,7 @@ export class ManagerDashboardComponent implements OnInit, AfterViewInit {
     ctx.fillStyle = '#06b6d4';
     completionProgress.forEach((val, i) => {
       const x = paddingLeft + i * xStep;
-      const y = paddingTop + chartHeight * (1 - val / 100);
+      const y = paddingTop + chartHeight * (1 - Math.min(val, 100) / 100);
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fill();
