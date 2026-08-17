@@ -311,3 +311,69 @@ class NotificationResponse(BaseModel):
         from_attributes = True
 
 
+# ---------------- BUDGET & EXPENSE SCHEMAS ----------------
+
+class ExpenseCreate(BaseModel):
+    project_id: int
+    category: str # Labor Cost, Material Cost, Equipment Cost, Transportation Cost, Maintenance Cost, Administrative Cost
+    amount: float = Field(gt=0)
+    description: Optional[str] = None
+    vendor_id: Optional[int] = None
+    expense_date: Optional[date] = None
+
+class ExpenseResponse(BaseModel):
+    id: int
+    project_id: int
+    category: str
+    amount: float
+    description: Optional[str] = None
+    vendor_id: Optional[int] = None
+    expense_date: date
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class BudgetPlanCreate(BaseModel):
+    project_id: int
+    total_budget: float = Field(gt=0)
+    labor_limit: Optional[float] = 0.0
+    material_limit: Optional[float] = 0.0
+    equipment_limit: Optional[float] = 0.0
+    transport_limit: Optional[float] = 0.0
+    maintenance_limit: Optional[float] = 0.0
+    admin_limit: Optional[float] = 0.0
+
+class BudgetPlanResponse(BaseModel):
+    id: int
+    project_id: int
+    total_budget: float
+    labor_limit: float
+    material_limit: float
+    equipment_limit: float
+    transport_limit: float
+    maintenance_limit: float
+    admin_limit: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CategoryCostBreakdown(BaseModel):
+    category: str
+    allocated_limit: float
+    actual_spent: float
+    remaining_balance: float
+    burn_rate_percentage: float
+
+class BudgetStatusResponse(BaseModel):
+    project_id: int
+    project_name: str
+    total_budget: float
+    total_spent: float
+    remaining_balance: float
+    burn_rate_percentage: float
+    categories: list[CategoryCostBreakdown]
+
+
+

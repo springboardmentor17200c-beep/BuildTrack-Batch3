@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from app import models, schemas
@@ -1716,5 +1717,133 @@ def update_invoice_payment(db: Session, invoice_id: int, payment_status: str):
     )
 
     return db_inv
+
+
+# ======================================================
+# BUDGET & EXPENSE MANAGEMENT CRUD
+# ======================================================
+
+def create_expense(db: Session, expense: schemas.ExpenseCreate):
+    db_exp = models.Expense(
+        project_id=expense.project_id,
+        category=expense.category,
+        amount=expense.amount,
+        description=expense.description,
+        vendor_id=expense.vendor_id,
+        expense_date=expense.expense_date or date.today()
+    )
+    db.add(db_exp)
+    db.commit()
+    db.refresh(db_exp)
+    return db_exp
+
+def get_expenses(db: Session, project_id: Optional[int] = None, category: Optional[str] = None):
+    query = db.query(models.Expense)
+    if project_id:
+        query = query.filter(models.Expense.project_id == project_id)
+    if category:
+        query = query.filter(models.Expense.category.ilike(f"%{category}%"))
+    return query.order_by(models.Expense.created_at.desc()).all()
+
+def delete_expense(db: Session, expense_id: int):
+    db_exp = db.query(models.Expense).filter(models.Expense.id == expense_id).first()
+    if not db_exp:
+        return None
+    db.delete(db_exp)
+    db.commit()
+    return db_exp
+
+def set_budget_plan(db: Session, plan: schemas.BudgetPlanCreate):
+    existing = db.query(models.BudgetPlan).filter(models.BudgetPlan.project_id == plan.project_id).first()
+    if existing:
+        existing.total_budget = plan.total_budget
+        existing.labor_limit = plan.labor_limit or 0.0
+        existing.material_limit = plan.material_limit or 0.0
+        existing.equipment_limit = plan.equipment_limit or 0.0
+        existing.transport_limit = plan.transport_limit or 0.0
+        existing.maintenance_limit = plan.maintenance_limit or 0.0
+        existing.admin_limit = plan.admin_limit or 0.0
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        new_plan = models.BudgetPlan(
+            project_id=plan.project_id,
+            total_budget=plan.total_budget,
+            labor_limit=plan.labor_limit or 0.0,
+            material_limit=plan.material_limit or 0.0,
+            equipment_limit=plan.equipment_limit or 0.0,
+            transport_limit=plan.transport_limit or 0.0,
+            maintenance_limit=plan.maintenance_limit or 0.0,
+            admin_limit=plan.admin_limit or 0.0
+        )
+        db.add(new_plan)
+        db.commit()
+        db.refresh(new_plan)
+        return new_plan
+
+def get_budget_plan(db: Session, project_id: int):
+    return db.query(models.BudgetPlan).filter(models.BudgetPlan.project_id == project_id).first()
+
+def get_project_budget_status(db: Session, project_id: int):
+    project = get_project(db, project_id)
+    project_name = project.project_name if project else f"Project #{project_id}"
+    allocated_total = project.budget if (project and project.budget) else 0.0
+
+    plan = get_budget_plan(db, project_id)
+    if plan and plan.total_budget > 0:
+        allocated_total = plan.total_budget
+
+    # Compute actual expenses by cost category
+    expenses = db.query(models.Expense).filter(models.Expense.project_id == project_id).all()
+    procurements = db.query(models.Procurement).filter(models.Procurement.project_id == project_id).all()
+    workers = db.query(models.Worker).filter(models.Worker.project_id == project_id).all()
+
+    category_totals = {
+        "Labor Cost": sum(w.salary for w in workers) + sum(e.amount for e in expenses if "labor" in e.category.lower()),
+        "Material Cost": sum(p.total_cost for p in procurements) + sum(e.amount for e in expenses if "material" in e.category.lower()),
+        "Equipment Cost": sum(e.amount for e in expenses if "equipment" in e.category.lower() or "machinery" in e.category.lower()),
+        "Transportation Cost": sum(e.amount for e in expenses if "transport" in e.category.lower() or "freight" in e.category.lower()),
+        "Maintenance Cost": sum(e.amount for e in expenses if "maintenance" in e.category.lower() or "repair" in e.category.lower()),
+        "Administrative Cost": sum(e.amount for e in expenses if "admin" in e.category.lower() or "office" in e.category.lower())
+    }
+
+    total_spent = sum(category_totals.values())
+    remaining = max(allocated_total - total_spent, 0.0)
+    burn_rate = round((total_spent / allocated_total * 100), 2) if allocated_total > 0 else 0.0
+
+    # Build category breakdown
+    limits = {
+        "Labor Cost": plan.labor_limit if plan else allocated_total * 0.3,
+        "Material Cost": plan.material_limit if plan else allocated_total * 0.4,
+        "Equipment Cost": plan.equipment_limit if plan else allocated_total * 0.15,
+        "Transportation Cost": plan.transport_limit if plan else allocated_total * 0.05,
+        "Maintenance Cost": plan.maintenance_limit if plan else allocated_total * 0.05,
+        "Administrative Cost": plan.admin_limit if plan else allocated_total * 0.05
+    }
+
+    breakdown = []
+    for cat, spent in category_totals.items():
+        limit = limits.get(cat, 0.0)
+        cat_rem = max(limit - spent, 0.0)
+        cat_burn = round((spent / limit * 100), 2) if limit > 0 else 0.0
+        breakdown.append(schemas.CategoryCostBreakdown(
+            category=cat,
+            allocated_limit=limit,
+            actual_spent=spent,
+            remaining_balance=cat_rem,
+            burn_rate_percentage=cat_burn
+        ))
+
+    return schemas.BudgetStatusResponse(
+        project_id=project_id,
+        project_name=project_name,
+        total_budget=allocated_total,
+        total_spent=total_spent,
+        remaining_balance=remaining,
+        burn_rate_percentage=burn_rate,
+        categories=breakdown
+    )
+
 
 

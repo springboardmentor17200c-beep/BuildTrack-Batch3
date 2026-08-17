@@ -1,3 +1,4 @@
+from datetime import datetime, date
 from sqlalchemy import (
     Column,
     Integer,
@@ -13,6 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
+
 from datetime import datetime
 from enum import Enum as PyEnum
 
@@ -289,3 +291,35 @@ class Invoice(Base):
 
     vendor = relationship("Vendor")
     purchase_order = relationship("PurchaseOrder")
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True)
+    category = Column(String(50), nullable=False) # Labor Cost, Material Cost, Equipment Cost, Transportation Cost, Maintenance Cost, Administrative Cost
+    amount = Column(Float, nullable=False, default=0.0)
+    description = Column(Text, nullable=True)
+    vendor_id = Column(Integer, ForeignKey("vendors.id"), nullable=True)
+    expense_date = Column(Date, nullable=False, default=date.today)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project")
+    vendor = relationship("Vendor")
+
+class BudgetPlan(Base):
+    __tablename__ = "budget_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), index=True, unique=True)
+    total_budget = Column(Float, nullable=False, default=0.0)
+    labor_limit = Column(Float, nullable=False, default=0.0)
+    material_limit = Column(Float, nullable=False, default=0.0)
+    equipment_limit = Column(Float, nullable=False, default=0.0)
+    transport_limit = Column(Float, nullable=False, default=0.0)
+    maintenance_limit = Column(Float, nullable=False, default=0.0)
+    admin_limit = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project")
+
